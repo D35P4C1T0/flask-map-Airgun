@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/*
+ENV/
+.env/
+.venv/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
+.ropeproject/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Data files (if large or generated and should not be versioned)
+# data.csv  # Uncomment if data.csv is very large or regenerated locally
+
+# Generated output images (already in static, but good to be explicit)
+static/output_raster.png
+static/preview_raster.png
+
+# Instance Folder (Flask specific, if used for local configs/DBs)
+instance/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints

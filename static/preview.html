@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Threshold Tuning</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+
+    <style>
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; font-family: sans-serif; }
+        body { display: flex; flex-direction: column; background: #f0f0f0; }
+        #controls { flex: 0 0 auto; padding: 10px; background: #fff; display: flex; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        .control-group label { margin-bottom: 0; }
+        .control-group input[type="range"] { order: 2; }
+        .control-group output { order: 3; font-weight: normal; background-color: #e9ecef; padding: 2px 6px; border-radius: .25rem; font-size: 0.9em; min-width: 30px; text-align: center;}
+        .control-group .unit { order: 4; font-size: 0.9em; margin-left: -4px;}
+        #mapPreview { flex: 2; position: relative; }
+        #changes { flex: 1; margin: 8px; overflow: auto; background: #272822; color: #f8f8f2; padding: 10px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        label { margin-right: 5px; font-weight: bold; }
+        input[type="range"] { width: 120px; }
+        button { padding: 6px 12px; background: #3e4989; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #31688e; }
+        #legend { position: absolute; top: 20px; right: 20px; background: white; padding: 10px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 1000; display: flex; }
+        #legendGradient { height: 150px; width: 20px; background: linear-gradient(to bottom, #fde725, #b4de2c, #6dcd59, #35b779, #1f9e89, #26828e, #31688e, #3e4989, #482878, #440154); border-radius: 2px; }
+        #legendLabels { display: flex; flex-direction: column; justify-content: space-between; height: 150px; margin-left: 8px; font-size: 12px; }
+        @media (max-width: 768px) {
+            #controls { flex-direction: column; align-items: stretch; }
+            .control-group { flex-direction: column; align-items: flex-start; gap: 5px; margin-bottom: 10px; }
+            .control-group input[type="range"] { width: 100%; order: 1; }
+            .control-group label { order: 0; /* Ensure label is first */ }
+            .control-group output { order: 2; width: auto; margin-top: 2px; }
+            .control-group .unit { order: 3; }
+            input[type="range"] { width: 90%; }
+            #legend { top: auto; bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="control-group">
+            <label for="minSlider">Min Threshold:</label>
+            <input type="range" id="minSlider" step="1" />
+            <output for="minSlider" id="minValOutput">0</output>
+        </div>
+        <div class="control-group">
+            <label for="maxSlider">Max Threshold:</label>
+            <input type="range" id="maxSlider" step="1" />
+            <output for="maxSlider" id="maxValOutput">0</output>
+        </div>
+        <div class="control-group">
+            <label for="resolutionSlider">Resolution:</label>
+            <input type="range" id="resolutionSlider" min="100" max="2000" step="50" value="500" />
+            <output for="resolutionSlider" id="resValOutput">300</output><span class="unit">px</span>
+        </div>
+        <div class="control-group">
+            <label for="dpiSlider">DPI:</label>
+            <input type="range" id="dpiSlider" min="50" max="600" step="10" value="100" />
+            <output for="dpiSlider" id="dpiValOutput">100</output>
+        </div>
+        <div class="control-group">
+            <label for="interpolationSelect">Interpolation:</label>
+            <select id="interpolationSelect">
+                <option value="nearest">Nearest Neighbor</option>
+                <option value="bilinear">Bilinear</option>
+                <option value="bicubic">Bicubic</option>
+                <option value="lanczos">Lanczos</option>
+                <option value="gaussian">Gaussian</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="previewOpacitySlider">Layer Opacity:</label>
+            <input type="range" id="previewOpacitySlider" min="0" max="1" step="0.01" value="0.75">
+            <output for="previewOpacitySlider" id="previewOpacityOutput">0.75</output>
+        </div>
+        <button id="previewBtn">Preview</button>
+    </div>
+    <div id="mapPreview"></div>
+    <div id="legend">
+        <div id="legendGradient"></div>
+        <div id="legendLabels"></div>
+    </div>
+    <pre id="changes">{}</pre>
+
+    <script>
+        // Initialize map
+        var map = L.map('mapPreview').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var imageOverlay;
+
+        // Fetch value range for sliders and default opacity
+        fetch('/value-range')
+            .then(res => res.json())
+            .then(data => {
+                if (data.min != null && data.max != null) {
+                    var minSlider = document.getElementById('minSlider');
+                    var maxSlider = document.getElementById('maxSlider');
+                    document.getElementById('minValOutput').value = parseFloat(data.min).toFixed(2);
+                    document.getElementById('maxValOutput').value = parseFloat(data.max).toFixed(2);
+                    minSlider.min = data.min;
+                    minSlider.max = data.max;
+                    minSlider.value = data.min;
+                    maxSlider.min = data.min;
+                    maxSlider.max = data.max;
+                    maxSlider.value = data.max;
+                    // Initialize output for sliders based on their current (default or fetched) values
+                    document.getElementById('minValOutput').value = parseFloat(minSlider.value).toFixed(2);
+                    document.getElementById('maxValOutput').value = parseFloat(maxSlider.value).toFixed(2);
+                }
+                // Initialize opacity slider
+                if (data.defaultOpacity != null) {
+                    var previewOpacitySlider = document.getElementById('previewOpacitySlider');
+                    var previewOpacityOutput = document.getElementById('previewOpacityOutput');
+                    previewOpacitySlider.value = data.defaultOpacity;
+                    previewOpacityOutput.value = parseFloat(data.defaultOpacity).toFixed(2);
+                }
+            })
+            .catch(err => console.error('Error fetching value range:', err));
+
+        // Set initial value for resolution output
+        document.getElementById('resValOutput').value = document.getElementById('resolutionSlider').value;
+        // Set initial value for DPI output
+        document.getElementById('dpiValOutput').value = document.getElementById('dpiSlider').value;
+
+        // Update display values during slider moves
+        document.getElementById('minSlider').addEventListener('input', function() {
+            document.getElementById('minValOutput').value = parseFloat(this.value).toFixed(2);
+        });
+        document.getElementById('maxSlider').addEventListener('input', function() {
+            document.getElementById('maxValOutput').value = parseFloat(this.value).toFixed(2);
+        });
+
+        // Update color scale labels based on current slider values
+        function updateColorScaleLabels() {
+            var minVal = parseFloat(document.getElementById('minSlider').value).toFixed(2);
+            var maxVal = parseFloat(document.getElementById('maxSlider').value).toFixed(2);
+            var labels = document.getElementById('legendLabels');
+            labels.innerHTML = '<span>' + maxVal + '</span><span>' + minVal + '</span>';
+        }
+
+        // Initial update of color scale labels
+        updateColorScaleLabels();
+
+        // Update color scale labels when sliders change
+        document.getElementById('minSlider').addEventListener('input', updateColorScaleLabels);
+        document.getElementById('maxSlider').addEventListener('input', updateColorScaleLabels);
+
+        // Update resolution value display
+        document.getElementById('resolutionSlider').addEventListener('input', function() {
+            document.getElementById('resValOutput').value = this.value;
+        });
+
+        // Update DPI value display
+        document.getElementById('dpiSlider').addEventListener('input', function() {
+            document.getElementById('dpiValOutput').value = this.value;
+        });
+
+        // Update Opacity value display and live update layer
+        var previewOpacitySlider = document.getElementById('previewOpacitySlider');
+        var previewOpacityOutput = document.getElementById('previewOpacityOutput');
+        previewOpacitySlider.addEventListener('input', function() {
+            var newOpacity = parseFloat(this.value);
+            previewOpacityOutput.value = newOpacity.toFixed(2);
+            if (imageOverlay) { // imageOverlay is the variable for the preview map's overlay
+                imageOverlay.setOpacity(newOpacity);
+            }
+        });
+
+        // Handle preview button
+        document.getElementById('previewBtn').addEventListener('click', function() {
+            // Clear previous change log
+            document.getElementById('changes').textContent = '';
+            var minThr = document.getElementById('minSlider').value;
+            var maxThr = document.getElementById('maxSlider').value;
+            var resolution = document.getElementById('resolutionSlider').value;
+            var dpi = document.getElementById('dpiSlider').value;
+            var interpolation = document.getElementById('interpolationSelect').value;
+            var currentOpacity = document.getElementById('previewOpacitySlider').value;
+            fetch('/preview?min=' + minThr + '&max=' + maxThr + '&resolution=' + resolution + '&dpi=' + dpi + '&interpolation=' + interpolation)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    // Remove old overlay
+                    if (imageOverlay) {
+                        map.removeLayer(imageOverlay);
+                    }
+                    // Add new overlay
+                    var bounds = [[data.bounds.south, data.bounds.west], [data.bounds.north, data.bounds.east]];
+                    imageOverlay = L.imageOverlay(data.imageUrl + '?t=' + Date.now(), bounds, { opacity: parseFloat(currentOpacity) }).addTo(map);
+                    map.fitBounds(bounds);
+
+                    // Display raw changes
+                    document.getElementById('changes').textContent = JSON.stringify(data.rawChanges, null, 2);
+                })
+                .catch(err => {
+                    console.error('Error fetching preview:', err);
+                    alert('Error generating preview');
+                });
+        });
+    </script>
+</body>
+</html> 

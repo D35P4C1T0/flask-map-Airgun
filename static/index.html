@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Raster Image on Map</title>
+
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+        />
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+        ></script>
+
+        <style>
+            html, body { height: 100%; margin: 0; padding: 0; font-family: sans-serif; background: #f0f0f0; }
+            #mapid { height: 100%; width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); display: none; z-index: 999; }
+            #sidebar { position: fixed; top: 0; right: -250px; width: 250px; height: 100%; background: #fff; z-index: 1000; transition: right 0.3s; box-shadow: -2px 0 5px rgba(0,0,0,0.5); }
+            #sidebar.open { right: 0; }
+            #overlay.show { display: block; }
+            #hamburger { position: fixed; top: 10px; right: 10px; z-index: 1001; background: #fff; border: none; font-size: 24px; cursor: pointer; color: #333; border-radius: 4px; padding: 5px 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+            #sidebar ul { list-style: none; padding: 20px; margin: 0; }
+            #sidebar li { margin: 10px 0; }
+            #sidebar a { text-decoration: none; color: #333; font-weight: bold; }
+            #closeBtn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div id="overlay"></div>
+        <div id="sidebar">
+            <button id="closeBtn">&times;</button>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/tune">Tune</a></li>
+                <li>
+                    <label for="mainOpacitySlider">Layer Opacity: <output id="mainOpacityOutput">0.75</output></label>
+                    <input type="range" id="mainOpacitySlider" min="0" max="1" step="0.01" value="0.75" style="width: 100%;">
+                </li>
+            </ul>
+        </div>
+        <button id="hamburger">&#9776;</button>
+        <div id="mapid"></div>
+
+        <script>
+            // Initialize the map
+            // Set a default initial view. We will adjust it later based on the raster bounds.
+            var mymap = L.map("mapid").setView([0, 0], 2);
+            var mainImageOverlay = null; // To store the image overlay layer
+
+            // Add a base tile layer (e.g., OpenStreetMap)
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            }).addTo(mymap);
+
+            // --- Fetch Raster Info from Backend ---
+            // Replace with the actual URL of your Flask backend's raster info endpoint
+            const rasterInfoUrl = "http://127.0.0.1:5000/raster-info"; // <<<--- IMPORTANT: Adjust if your Flask app runs on a different address/port
+
+            fetch(rasterInfoUrl)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    // The fetched data should contain imageUrl and bounds
+                    const imageUrl = data.imageUrl;
+                    const bounds = data.bounds; // Expected format: { south: ..., west: ..., north: ..., east: ... }
+                    const defaultOpacity = data.defaultOpacity || 0.75; // Use fetched or fallback
+
+                    if (imageUrl && bounds) {
+                        // Create a LatLngBounds object from the fetched bounds
+                        const imageBounds = [
+                            [bounds.south, bounds.west],
+                            [bounds.north, bounds.east],
+                        ];
+
+                        // Add the image overlay to the map
+                        mainImageOverlay = L.imageOverlay(imageUrl, imageBounds, { opacity: defaultOpacity }).addTo(mymap);
+
+                        // Adjust the map view to fit the bounds of the image
+                        mymap.fitBounds(imageBounds);
+
+                        // Initialize slider and output
+                        var mainOpacitySlider = document.getElementById('mainOpacitySlider');
+                        var mainOpacityOutput = document.getElementById('mainOpacityOutput');
+                        mainOpacitySlider.value = defaultOpacity;
+                        mainOpacityOutput.value = defaultOpacity.toFixed(2);
+                    } else {
+                        console.error(
+                            "Fetched raster info is incomplete:",
+                            data,
+                        );
+                        alert("Could not load raster info from the backend.");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error fetching raster info:", error);
+                    alert(
+                        "Could not connect to the backend or fetch raster info. Please check the server and URL.",
+                    );
+                });
+
+            // --- Tweaking Display (Optional) ---
+            // You can adjust the opacity of the image overlay after it's added
+            // For example, to make it semi-transparent:
+            // The initial opacity is set when the layer is created using defaultOpacity.
+            // The slider below will handle further dynamic changes.
+
+            // Hamburger menu toggle
+            var hamburger = document.getElementById('hamburger');
+            var sidebar   = document.getElementById('sidebar');
+            var overlay   = document.getElementById('overlay');
+            var closeBtn  = document.getElementById('closeBtn');
+
+            hamburger.addEventListener('click', function() {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+                mymap.invalidateSize();
+            });
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            });
+            closeBtn.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            });
+
+            // Opacity slider for main map
+            var mainOpacitySlider = document.getElementById('mainOpacitySlider');
+            var mainOpacityOutput = document.getElementById('mainOpacityOutput');
+            mainOpacitySlider.addEventListener('input', function() {
+                var newOpacity = parseFloat(this.value);
+                mainOpacityOutput.value = newOpacity.toFixed(2);
+                if (mainImageOverlay) {
+                    mainImageOverlay.setOpacity(newOpacity);
+                }
+            });
+        </script>
+    </body>
+</html>
