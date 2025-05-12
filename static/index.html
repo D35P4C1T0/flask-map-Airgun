@@ -1,152 +1,387 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Raster Image on Map</title>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Heatmap</title>
+    
+    <!-- Deck.gl -->
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-        <link
-            rel="stylesheet"
-            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-            crossorigin=""
-        />
-        <script
-            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-            crossorigin=""
-        ></script>
-
-        <style>
-            html, body { height: 100%; margin: 0; padding: 0; font-family: sans-serif; background: #f0f0f0; }
-            #mapid { height: 100%; width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); display: none; z-index: 999; }
-            #sidebar { position: fixed; top: 0; right: -250px; width: 250px; height: 100%; background: #fff; z-index: 1000; transition: right 0.3s; box-shadow: -2px 0 5px rgba(0,0,0,0.5); }
-            #sidebar.open { right: 0; }
-            #overlay.show { display: block; }
-            #hamburger { position: fixed; top: 10px; right: 10px; z-index: 1001; background: #fff; border: none; font-size: 24px; cursor: pointer; color: #333; border-radius: 4px; padding: 5px 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-            #sidebar ul { list-style: none; padding: 20px; margin: 0; }
-            #sidebar li { margin: 10px 0; }
-            #sidebar a { text-decoration: none; color: #333; font-weight: bold; }
-            #closeBtn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; }
-        </style>
-    </head>
-    <body>
-        <div id="overlay"></div>
-        <div id="sidebar">
-            <button id="closeBtn">&times;</button>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/tune">Tune</a></li>
-                <li>
-                    <label for="mainOpacitySlider">Layer Opacity: <output id="mainOpacityOutput">0.75</output></label>
-                    <input type="range" id="mainOpacitySlider" min="0" max="1" step="0.01" value="0.75" style="width: 100%;">
-                </li>
-            </ul>
+    <style>
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        #map { 
+            height: 100%; 
+            width: 100%; 
+            position: relative;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 0.75rem;
+            background: rgba(17, 24, 39, 0.9);
+            color: white;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-width: 300px;
+        }
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        .tooltip-label {
+            color: #9CA3AF;
+            margin-right: 1rem;
+        }
+        .tooltip-value {
+            color: #F3F4F6;
+            font-weight: 500;
+        }
+        input[type="range"] {
+            @apply h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            @apply appearance-none w-4 h-4 bg-blue-600 rounded-full;
+        }
+        .cursor-crosshair .deck-canvas {
+            cursor: crosshair !important;
+        }
+        /* Ensure the canvas doesn't block pointer events when in picker mode */
+        .cursor-crosshair .deck-canvas {
+            pointer-events: all !important;
+        }
+        /* Style for the controls panel */
+        .controls-panel {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 18rem;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="map"></div>
+    <div id="tooltip" class="tooltip" style="display: none;"></div>
+    <div class="controls-panel">
+        <div class="space-y-4">
+            <div>
+                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
+                    Radius
+                    <span id="radiusValue" class="text-blue-600">20px</span>
+                </label>
+                <input
+                    type="range"
+                    id="radiusSlider"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value="20"
+                    class="w-full"
+                />
+            </div>
+            <div>
+                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
+                    Intensity
+                    <span id="intensityValue" class="text-blue-600">1</span>
+                </label>
+                <input
+                    type="range"
+                    id="intensitySlider"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value="1"
+                    class="w-full"
+                />
+            </div>
+            <div>
+                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
+                    Threshold
+                    <span id="thresholdValue" class="text-blue-600">0.05</span>
+                </label>
+                <input
+                    type="range"
+                    id="thresholdSlider"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.05"
+                    class="w-full"
+                />
+            </div>
         </div>
-        <button id="hamburger">&#9776;</button>
-        <div id="mapid"></div>
+        <div class="pt-4 border-t border-gray-200">
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="valuePickerToggle" class="sr-only peer">
+                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span class="ms-3 text-sm font-medium text-gray-700">Value Picker Mode</span>
+                <!-- <span id="valuePickerStatus" class="ml-2 text-sm font-medium text-gray-500"></span> -->
+            </label>
+        </div>
+    </div>
 
-        <script>
-            // Initialize the map
-            // Set a default initial view. We will adjust it later based on the raster bounds.
-            var mymap = L.map("mapid").setView([0, 0], 2);
-            var mainImageOverlay = null; // To store the image overlay layer
+    <script>
+        // Initialize deck.gl
+        let deckgl;
+        let heatmapLayer;
+        let data = [];
+        let valueRange = { min: 0, max: 1 };
+        let colorScale = [];
+        let isValuePickerMode = false;
+        let pickedPoint = null;
 
-            // Add a base tile layer (e.g., OpenStreetMap)
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            }).addTo(mymap);
+        // Configuration for the heatmap
+        let config = {
+            radius: 20,
+            intensity: 1,
+            threshold: 0.05
+        };
 
-            // --- Fetch Raster Info from Backend ---
-            // Replace with the actual URL of your Flask backend's raster info endpoint
-            const rasterInfoUrl = "http://127.0.0.1:5000/raster-info"; // <<<--- IMPORTANT: Adjust if your Flask app runs on a different address/port
+        // OpenStreetMap tile layer configuration
+        const OSM_TILE_LAYER = {
+            id: 'osm-tiles',
+            type: 'TileLayer',
+            data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            tileSize: 256,
+            minZoom: 0,
+            maxZoom: 19,
+            renderSubLayers: props => {
+                const {
+                    bbox: {west, south, east, north}
+                } = props.tile;
 
-            fetch(rasterInfoUrl)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(
-                            `HTTP error! status: ${response.status}`,
-                        );
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    // The fetched data should contain imageUrl and bounds
-                    const imageUrl = data.imageUrl;
-                    const bounds = data.bounds; // Expected format: { south: ..., west: ..., north: ..., east: ... }
-                    const defaultOpacity = data.defaultOpacity || 0.75; // Use fetched or fallback
-
-                    if (imageUrl && bounds) {
-                        // Create a LatLngBounds object from the fetched bounds
-                        const imageBounds = [
-                            [bounds.south, bounds.west],
-                            [bounds.north, bounds.east],
-                        ];
-
-                        // Add the image overlay to the map
-                        mainImageOverlay = L.imageOverlay(imageUrl, imageBounds, { opacity: defaultOpacity }).addTo(mymap);
-
-                        // Adjust the map view to fit the bounds of the image
-                        mymap.fitBounds(imageBounds);
-
-                        // Initialize slider and output
-                        var mainOpacitySlider = document.getElementById('mainOpacitySlider');
-                        var mainOpacityOutput = document.getElementById('mainOpacityOutput');
-                        mainOpacitySlider.value = defaultOpacity;
-                        mainOpacityOutput.value = defaultOpacity.toFixed(2);
-                    } else {
-                        console.error(
-                            "Fetched raster info is incomplete:",
-                            data,
-                        );
-                        alert("Could not load raster info from the backend.");
-                    }
-                })
-                .catch((error) => {
-                    console.error("Error fetching raster info:", error);
-                    alert(
-                        "Could not connect to the backend or fetch raster info. Please check the server and URL.",
-                    );
+                return new deck.BitmapLayer({
+                    id: props.id,
+                    data: null,
+                    image: props.data,
+                    bounds: [west, south, east, north]
                 });
+            }
+        };
 
-            // --- Tweaking Display (Optional) ---
-            // You can adjust the opacity of the image overlay after it's added
-            // For example, to make it semi-transparent:
-            // The initial opacity is set when the layer is created using defaultOpacity.
-            // The slider below will handle further dynamic changes.
+        // Helper function to convert hex to RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
 
-            // Hamburger menu toggle
-            var hamburger = document.getElementById('hamburger');
-            var sidebar   = document.getElementById('sidebar');
-            var overlay   = document.getElementById('overlay');
-            var closeBtn  = document.getElementById('closeBtn');
-
-            hamburger.addEventListener('click', function() {
-                sidebar.classList.add('open');
-                overlay.classList.add('show');
-                mymap.invalidateSize();
-            });
-            overlay.addEventListener('click', function() {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('show');
-            });
-            closeBtn.addEventListener('click', function() {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('show');
+        // Create heatmap layer
+        function createHeatmapLayer() {
+            const colorRangeRGB = colorScale.map(([_, hexColor]) => {
+                const rgb = hexToRgb(hexColor);
+                return [rgb.r, rgb.g, rgb.b];
             });
 
-            // Opacity slider for main map
-            var mainOpacitySlider = document.getElementById('mainOpacitySlider');
-            var mainOpacityOutput = document.getElementById('mainOpacityOutput');
-            mainOpacitySlider.addEventListener('input', function() {
-                var newOpacity = parseFloat(this.value);
-                mainOpacityOutput.value = newOpacity.toFixed(2);
-                if (mainImageOverlay) {
-                    mainImageOverlay.setOpacity(newOpacity);
+            return new deck.HeatmapLayer({
+                id: 'heatmap',
+                data,
+                getPosition: d => [d.Longitude, d.Latitude],
+                getWeight: d => {
+                    const normalizedValue = (d.Value - valueRange.min) / (valueRange.max - valueRange.min);
+                    return normalizedValue;
+                },
+                radiusPixels: config.radius,
+                intensity: config.intensity,
+                threshold: config.threshold,
+                colorRange: colorRangeRGB,
+                pickable: true,
+                parameters: {
+                    depthTest: false
                 }
             });
-        </script>
-    </body>
+        }
+
+        // Update heatmap when controls change
+        function updateHeatmap() {
+            if (heatmapLayer) {
+                heatmapLayer = createHeatmapLayer();
+                deckgl.setProps({
+                    layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer]
+                });
+            }
+        }
+
+        // Initialize the map
+        function initializeMap() {
+            deckgl = new deck.DeckGL({
+                container: 'map',
+                initialViewState: {
+                    longitude: 0,
+                    latitude: 0,
+                    zoom: 2,
+                    pitch: 0,
+                    bearing: 0
+                },
+                controller: true,
+                getCursor: ({isDragging}) => {
+                    if (isValuePickerMode) return 'crosshair';
+                    return isDragging ? 'grabbing' : 'grab';
+                },
+                onClick: handleClick,
+                onHover: handleHover,
+                layers: [new deck.TileLayer(OSM_TILE_LAYER)]
+            });
+        }
+
+        // Handle click events
+        function handleClick(info) {
+            if (!isValuePickerMode) return;
+            
+            const tooltip = document.getElementById('tooltip');
+            if (info.object) {
+                pickedPoint = info;
+                updateTooltip(info, true);
+                console.log('Picked point:', {
+                    value: info.object.Value,
+                    normalized: (info.object.Value - valueRange.min) / (valueRange.max - valueRange.min),
+                    coordinates: [info.object.Longitude, info.object.Latitude]
+                });
+            } else {
+                pickedPoint = null;
+                tooltip.style.display = 'none';
+            }
+        }
+
+        // Handle hover events
+        function handleHover(info) {
+            if (!isValuePickerMode) return;
+            
+            const tooltip = document.getElementById('tooltip');
+            if (info.object) {
+                updateTooltip(info, false);
+            } else if (!pickedPoint) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        // Update tooltip content
+        function updateTooltip(info, isPicked) {
+            const tooltip = document.getElementById('tooltip');
+            if (!info.object) return;
+
+            const normalizedValue = (info.object.Value - valueRange.min) / (valueRange.max - valueRange.min);
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${info.x}px`;
+            tooltip.style.top = `${info.y}px`;
+            tooltip.innerHTML = `
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Latitude:</span>
+                    <span class="tooltip-value">${info.object.Latitude.toFixed(4)}°</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Longitude:</span>
+                    <span class="tooltip-value">${info.object.Longitude.toFixed(4)}°</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Value:</span>
+                    <span class="tooltip-value">${info.object.Value.toFixed(2)}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Normalized:</span>
+                    <span class="tooltip-value">${normalizedValue.toFixed(3)}</span>
+                </div>
+                ${isPicked ? '<div class="text-xs text-green-400 mt-2">✓ Value picked</div>' : ''}
+            `;
+        }
+
+        // Toggle value picker mode
+        function toggleValuePickerMode(enabled) {
+            isValuePickerMode = enabled;
+            pickedPoint = null;
+            const mapElement = document.getElementById('map');
+            const tooltip = document.getElementById('tooltip');
+            
+            if (enabled) {
+                mapElement.classList.add('cursor-crosshair');
+            } else {
+                mapElement.classList.remove('cursor-crosshair');
+                tooltip.style.display = 'none';
+            }
+
+            updateHeatmap();
+        }
+
+        // Load data and create visualization
+        function loadData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(result => {
+                    data = result.data;
+                    valueRange = result.valueRange;
+                    colorScale = result.colorScale;
+
+                    console.log('Data loaded:', {
+                        dataLength: data.length,
+                        valueRange,
+                        colorScaleLength: colorScale.length
+                    });
+
+                    const lats = data.map(d => d.Latitude);
+                    const lons = data.map(d => d.Longitude);
+                    const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                    const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+
+                    heatmapLayer = createHeatmapLayer();
+                    
+                    deckgl.setProps({
+                        initialViewState: {
+                            longitude: centerLon,
+                            latitude: centerLat,
+                            zoom: 5,
+                            pitch: 0,
+                            bearing: 0
+                        },
+                        layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer]
+                    });
+                })
+                .catch(error => console.error('Error loading data:', error));
+        }
+
+        // Add event listeners for controls
+        document.getElementById('radiusSlider').addEventListener('input', function(e) {
+            config.radius = parseInt(e.target.value);
+            document.getElementById('radiusValue').textContent = config.radius + 'px';
+            updateHeatmap();
+        });
+
+        document.getElementById('intensitySlider').addEventListener('input', function(e) {
+            config.intensity = parseFloat(e.target.value);
+            document.getElementById('intensityValue').textContent = config.intensity;
+            updateHeatmap();
+        });
+
+        document.getElementById('thresholdSlider').addEventListener('input', function(e) {
+            config.threshold = parseFloat(e.target.value);
+            document.getElementById('thresholdValue').textContent = config.threshold;
+            updateHeatmap();
+        });
+
+        document.getElementById('valuePickerToggle').addEventListener('change', function(e) {
+            toggleValuePickerMode(e.target.checked);
+        });
+
+        // Initialize the application
+        initializeMap();
+        loadData();
+    </script>
+</body>
 </html>
