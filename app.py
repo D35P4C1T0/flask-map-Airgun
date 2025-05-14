@@ -3,11 +3,15 @@ import json
 import pandas as pd
 from flask import Flask, jsonify, send_from_directory, render_template
 from flask_cors import CORS
+from flask_compress import Compress
 from utils.color_utils import load_colors
 from config import AppConfig
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Compress communication between client and server
+Compress(app)
 
 # Configure Flask to minify JSON responses
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
