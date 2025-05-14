@@ -136,16 +136,6 @@
                 <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="{{ config.INITIAL_HEATMAP_THRESHOLD }}" class="w-full" />
             </div>
         </div>
-        <div class="pt-4 border-t border-gray-200">
-            <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="valuePickerToggle" class="sr-only peer">
-                <div
-                    class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
-                </div>
-                <span class="ms-3 text-sm font-medium text-gray-700">Value Picker Mode</span>
-                <!-- <span id="valuePickerStatus" class="ml-2 text-sm font-medium text-gray-500"></span> -->
-            </label>
-        </div>
     </div>
 
     <!-- Help Icon and Tooltip -->
@@ -162,7 +152,6 @@
                 <li><strong>Radius:</strong> Controls the radius of influence for each data point in pixels. Larger values create a more smoothed/spread-out heatmap.</li>
                 <li><strong>Intensity:</strong> Multiplies the weight of each data point. Higher values increase the apparent 'strength' of heatmap spots.</li>
                 <li><strong>Threshold:</strong> Sets the minimum normalized value a point must have to be drawn. Filters out low-value data points.</li>
-                <li><strong>Value Picker Mode:</strong> When enabled, click on the map to see detailed information about the data point under the cursor, including its latitude, longitude, and value.</li>
             </ul>
             <div
                 class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full w-3 h-3 bg-gray-800 rotate-45">
@@ -177,8 +166,6 @@
         let data = [];
         let valueRange = { min: 0, max: 1 };
         let colorScale = [];
-        let isValuePickerMode = false;
-        let pickedPoint = null;
         let currentOpacity = {{ config.DEFAULT_MAP_OPACITY }};
 
         // Configuration for the heatmap, using values from Flask config
@@ -270,91 +257,12 @@
                 },
                 controller: true,
                 getCursor: ({ isDragging }) => {
-                    if (isValuePickerMode) return 'crosshair';
                     return isDragging ? 'grabbing' : 'grab';
                 },
-                onClick: handleClick,
-                onHover: handleHover,
+                onClick: null,
+                onHover: null,
                 layers: [new deck.TileLayer(OSM_TILE_LAYER)]
             });
-        }
-
-        // Handle click events
-        function handleClick(info) {
-            if (!isValuePickerMode) return;
-
-            const tooltip = document.getElementById('tooltip');
-            if (info.object) {
-                pickedPoint = info;
-                updateTooltip(info, true);
-                console.log('Picked point:', {
-                    value: info.object.Value,
-                    normalized: (info.object.Value - valueRange.min) / (valueRange.max - valueRange.min),
-                    coordinates: [info.object.Longitude, info.object.Latitude]
-                });
-            } else {
-                pickedPoint = null;
-                tooltip.style.display = 'none';
-            }
-        }
-
-        // Handle hover events
-        function handleHover(info) {
-            if (!isValuePickerMode) return;
-
-            const tooltip = document.getElementById('tooltip');
-            if (info.object) {
-                updateTooltip(info, false);
-            } else if (!pickedPoint) {
-                tooltip.style.display = 'none';
-            }
-        }
-
-        // Update tooltip content
-        function updateTooltip(info, isPicked) {
-            const tooltip = document.getElementById('tooltip');
-            if (!info.object) return;
-
-            const normalizedValue = (info.object.Value - valueRange.min) / (valueRange.max - valueRange.min);
-            tooltip.style.display = 'block';
-            tooltip.style.left = `${info.x}px`;
-            tooltip.style.top = `${info.y}px`;
-            tooltip.innerHTML = `
-                <div class="tooltip-row">
-                    <span class="tooltip-label">Latitude:</span>
-                    <span class="tooltip-value">${info.object.Latitude.toFixed(4)}°</span>
-                </div>
-                <div class="tooltip-row">
-                    <span class="tooltip-label">Longitude:</span>
-                    <span class="tooltip-value">${info.object.Longitude.toFixed(4)}°</span>
-                </div>
-                <div class="tooltip-row">
-                    <span class="tooltip-label">Value:</span>
-                    <span class="tooltip-value">${info.object.Value.toFixed(2)}</span>
-                </div>
-                <div class="tooltip-row">
-                    <span class="tooltip-label">Normalized:</span>
-                    <span class="tooltip-value">${normalizedValue.toFixed(3)}</span>
-                </div>
-                ${isPicked ? '<div class="text-xs text-green-400 mt-2">✓ Value picked</div>' : ''}
-            `;
-        }
-
-        // Toggle value picker mode
-        function toggleValuePickerMode(enabled) {
-            isValuePickerMode = enabled;
-            pickedPoint = null;
-            const mapElement = document.getElementById('map');
-            const tooltip = document.getElementById('tooltip');
-
-            if (enabled) {
-                mapElement.classList.add('cursor-crosshair');
-            } else {
-                mapElement.classList.remove('cursor-crosshair');
-                tooltip.style.display = 'none';
-            }
-
-            updateHeatmap();
         }
 
         // Load data and create visualization
@@ -416,10 +324,6 @@
             currentOpacity = parseFloat(e.target.value);
             document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
             updateHeatmap();
-        });
-
-        document.getElementById('valuePickerToggle').addEventListener('change', function (e) {
-            toggleValuePickerMode(e.target.checked);
         });
 
         // Initialize the application
