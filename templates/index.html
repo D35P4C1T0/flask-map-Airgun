@@ -1,27 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Interactive Heatmap</title>
-    
+
     <!-- Deck.gl -->
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        html, body { 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
             font-family: system-ui, -apple-system, sans-serif;
         }
-        #map { 
-            height: 100%; 
-            width: 100%; 
+
+        #map {
+            height: 100%;
+            width: 100%;
             position: relative;
         }
+
         .tooltip {
             position: absolute;
             padding: 0.75rem;
@@ -34,32 +38,40 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             max-width: 300px;
         }
+
         .tooltip-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 0.25rem;
         }
+
         .tooltip-label {
             color: #9CA3AF;
             margin-right: 1rem;
         }
+
         .tooltip-value {
             color: #F3F4F6;
             font-weight: 500;
         }
+
         input[type="range"] {
             @apply h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
         }
+
         input[type="range"]::-webkit-slider-thumb {
             @apply appearance-none w-4 h-4 bg-blue-600 rounded-full;
         }
+
         .cursor-crosshair .deck-canvas {
             cursor: crosshair !important;
         }
+
         /* Ensure the canvas doesn't block pointer events when in picker mode */
         .cursor-crosshair .deck-canvas {
             pointer-events: all !important;
         }
+
         /* Style for the controls panel */
         .controls-panel {
             position: fixed;
@@ -74,64 +86,87 @@
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div id="map"></div>
-    <div id="tooltip" class="tooltip" style="display: none;"></div>
+
+<body class="bg-gray-100 font-sans">
+    <div id="map" class="relative"></div>
+    <div id="tooltip"
+        class="absolute bg-gray-900 bg-opacity-90 text-white text-sm rounded-lg shadow-lg p-3 max-w-xs z-[1000] pointer-events-none"
+        style="display: none;">
+        <!-- Tooltip content will be dynamically inserted by your JS -->
+        <!-- Example structure if you want to pre-define it for styling: -->
+        <!-- 
+        <div class="tooltip-row flex justify-between mb-1">
+            <span class="tooltip-label text-gray-400 mr-4">Latitude:</span>
+            <span class="tooltip-value text-gray-100 font-medium" id="tooltip-lat"></span>
+        </div>
+        <div class="tooltip-row flex justify-between">
+            <span class="tooltip-label text-gray-400 mr-4">Value:</span>
+            <span class="tooltip-value text-gray-100 font-medium" id="tooltip-value"></span>
+        </div>
+        -->
+    </div>
     <div class="controls-panel">
         <div class="space-y-4">
             <div>
                 <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
-                    Radius
-                    <span id="radiusValue" class="text-blue-600">20px</span>
+                    Layer Opacity
+                    <span id="opacityValue" class="text-blue-600">{{ config.DEFAULT_MAP_OPACITY }}</span>
                 </label>
-                <input
-                    type="range"
-                    id="radiusSlider"
-                    min="1"
-                    max="100"
-                    step="1"
-                    value="20"
-                    class="w-full"
-                />
+                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="{{ config.DEFAULT_MAP_OPACITY }}" class="w-full" />
+            </div>
+            <div>
+                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
+                    Radius
+                    <span id="radiusValue" class="text-blue-600">{{ config.INITIAL_HEATMAP_RADIUS }}px</span>
+                </label>
+                <input type="range" id="radiusSlider" min="1" max="100" step="1" value="{{ config.INITIAL_HEATMAP_RADIUS }}" class="w-full" />
             </div>
             <div>
                 <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
                     Intensity
-                    <span id="intensityValue" class="text-blue-600">1</span>
+                    <span id="intensityValue" class="text-blue-600">{{ "%.1f"|format(config.INITIAL_HEATMAP_INTENSITY|float) }}</span>
                 </label>
-                <input
-                    type="range"
-                    id="intensitySlider"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value="1"
-                    class="w-full"
-                />
+                <input type="range" id="intensitySlider" min="0" max="5" step="0.1" value="{{ config.INITIAL_HEATMAP_INTENSITY }}" class="w-full" />
             </div>
             <div>
                 <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
                     Threshold
-                    <span id="thresholdValue" class="text-blue-600">0.05</span>
+                    <span id="thresholdValue" class="text-blue-600">{{ "%.2f"|format(config.INITIAL_HEATMAP_THRESHOLD|float) }}</span>
                 </label>
-                <input
-                    type="range"
-                    id="thresholdSlider"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value="0.05"
-                    class="w-full"
-                />
+                <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="{{ config.INITIAL_HEATMAP_THRESHOLD }}" class="w-full" />
             </div>
         </div>
         <div class="pt-4 border-t border-gray-200">
             <label class="inline-flex items-center cursor-pointer">
                 <input type="checkbox" id="valuePickerToggle" class="sr-only peer">
-                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div
+                    class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                </div>
                 <span class="ms-3 text-sm font-medium text-gray-700">Value Picker Mode</span>
                 <!-- <span id="valuePickerStatus" class="ml-2 text-sm font-medium text-gray-500"></span> -->
             </label>
+        </div>
+    </div>
+
+    <!-- Help Icon and Tooltip -->
+    <div class="group absolute bottom-4 left-4 z-[1000]">
+        <button id="helpIcon"
+            class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            <span class="text-xl font-bold">?</span>
+        </button>
+        <div id="helpTooltip"
+            class="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 text-white text-xs rounded-md shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <h4 class="font-semibold text-sm mb-1">Controls Help:</h4>
+            <ul class="list-disc list-inside space-y-1">
+                <li><strong>Layer Opacity:</strong> Adjusts the transparency of the heatmap layer.</li>
+                <li><strong>Radius:</strong> Controls the radius of influence for each data point in pixels. Larger values create a more smoothed/spread-out heatmap.</li>
+                <li><strong>Intensity:</strong> Multiplies the weight of each data point. Higher values increase the apparent 'strength' of heatmap spots.</li>
+                <li><strong>Threshold:</strong> Sets the minimum normalized value a point must have to be drawn. Filters out low-value data points.</li>
+                <li><strong>Value Picker Mode:</strong> When enabled, click on the map to see detailed information about the data point under the cursor, including its latitude, longitude, and value.</li>
+            </ul>
+            <div
+                class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full w-3 h-3 bg-gray-800 rotate-45">
+            </div> <!-- Tooltip arrow -->
         </div>
     </div>
 
@@ -144,12 +179,13 @@
         let colorScale = [];
         let isValuePickerMode = false;
         let pickedPoint = null;
+        let currentOpacity = {{ config.DEFAULT_MAP_OPACITY }};
 
-        // Configuration for the heatmap
-        let config = {
-            radius: 20,
-            intensity: 1,
-            threshold: 0.05
+        // Configuration for the heatmap, using values from Flask config
+        let heatmapConfig = { 
+            radius: {{ config.INITIAL_HEATMAP_RADIUS }},
+            intensity: {{ config.INITIAL_HEATMAP_INTENSITY }},
+            threshold: {{ config.INITIAL_HEATMAP_THRESHOLD }}
         };
 
         // OpenStreetMap tile layer configuration
@@ -162,7 +198,7 @@
             maxZoom: 19,
             renderSubLayers: props => {
                 const {
-                    bbox: {west, south, east, north}
+                    bbox: { west, south, east, north }
                 } = props.tile;
 
                 return new deck.BitmapLayer({
@@ -199,10 +235,11 @@
                     const normalizedValue = (d.Value - valueRange.min) / (valueRange.max - valueRange.min);
                     return normalizedValue;
                 },
-                radiusPixels: config.radius,
-                intensity: config.intensity,
-                threshold: config.threshold,
+                radiusPixels: heatmapConfig.radius,
+                intensity: heatmapConfig.intensity,
+                threshold: heatmapConfig.threshold,
                 colorRange: colorRangeRGB,
+                opacity: currentOpacity,
                 pickable: true,
                 parameters: {
                     depthTest: false
@@ -232,7 +269,7 @@
                     bearing: 0
                 },
                 controller: true,
-                getCursor: ({isDragging}) => {
+                getCursor: ({ isDragging }) => {
                     if (isValuePickerMode) return 'crosshair';
                     return isDragging ? 'grabbing' : 'grab';
                 },
@@ -245,7 +282,7 @@
         // Handle click events
         function handleClick(info) {
             if (!isValuePickerMode) return;
-            
+
             const tooltip = document.getElementById('tooltip');
             if (info.object) {
                 pickedPoint = info;
@@ -264,7 +301,7 @@
         // Handle hover events
         function handleHover(info) {
             if (!isValuePickerMode) return;
-            
+
             const tooltip = document.getElementById('tooltip');
             if (info.object) {
                 updateTooltip(info, false);
@@ -309,7 +346,7 @@
             pickedPoint = null;
             const mapElement = document.getElementById('map');
             const tooltip = document.getElementById('tooltip');
-            
+
             if (enabled) {
                 mapElement.classList.add('cursor-crosshair');
             } else {
@@ -341,7 +378,7 @@
                     const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
 
                     heatmapLayer = createHeatmapLayer();
-                    
+
                     deckgl.setProps({
                         initialViewState: {
                             longitude: centerLon,
@@ -357,31 +394,48 @@
         }
 
         // Add event listeners for controls
-        document.getElementById('radiusSlider').addEventListener('input', function(e) {
-            config.radius = parseInt(e.target.value);
-            document.getElementById('radiusValue').textContent = config.radius + 'px';
+        document.getElementById('radiusSlider').addEventListener('input', function (e) {
+            heatmapConfig.radius = parseInt(e.target.value);
+            document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
             updateHeatmap();
         });
 
-        document.getElementById('intensitySlider').addEventListener('input', function(e) {
-            config.intensity = parseFloat(e.target.value);
-            document.getElementById('intensityValue').textContent = config.intensity;
+        document.getElementById('intensitySlider').addEventListener('input', function (e) {
+            heatmapConfig.intensity = parseFloat(e.target.value);
+            document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
             updateHeatmap();
         });
 
-        document.getElementById('thresholdSlider').addEventListener('input', function(e) {
-            config.threshold = parseFloat(e.target.value);
-            document.getElementById('thresholdValue').textContent = config.threshold;
+        document.getElementById('thresholdSlider').addEventListener('input', function (e) {
+            heatmapConfig.threshold = parseFloat(e.target.value);
+            document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
             updateHeatmap();
         });
 
-        document.getElementById('valuePickerToggle').addEventListener('change', function(e) {
+        document.getElementById('opacitySlider').addEventListener('input', function (e) {
+            currentOpacity = parseFloat(e.target.value);
+            document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
+            updateHeatmap();
+        });
+
+        document.getElementById('valuePickerToggle').addEventListener('change', function (e) {
             toggleValuePickerMode(e.target.checked);
         });
 
         // Initialize the application
         initializeMap();
         loadData();
+
+        // Initialize slider values from defaults passed by Flask
+        document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
+        document.getElementById('opacitySlider').value = currentOpacity;
+        document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
+        document.getElementById('radiusSlider').value = heatmapConfig.radius;
+        document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
+        document.getElementById('intensitySlider').value = heatmapConfig.intensity;
+        document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
+        document.getElementById('thresholdSlider').value = heatmapConfig.threshold;
     </script>
 </body>
-</html>
+
+</html> 

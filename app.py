@@ -1,8 +1,10 @@
 import os
 import json
 import pandas as pd
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, render_template
 from flask_cors import CORS
+from utils.color_utils import load_colors
+from config import AppConfig
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -11,33 +13,15 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.json.compact = True  # For Flask 2.2+
 
-def load_colors():
-    try:
-        with open('colors/colors.min.json', 'r') as f:
-            colors = json.load(f)
-            print(f"Loaded {len(colors)} color stops")
-            return colors
-    except Exception as e:
-        print(f"Error loading colors: {e}")
-        # Try loading the original file as fallback
-        try:
-            with open('colors/colors.json', 'r') as f:
-                colors = json.load(f)
-                print(f"Loaded {len(colors)} color stops from fallback file")
-                return colors
-        except Exception as e2:
-            print(f"Error loading fallback colors: {e2}")
-            return [[0, "#80D6EA"], [1, "#8B0000"]]  # Default fallback colors
-
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return render_template('index.html', config=AppConfig)
 
 @app.route('/data')
 def get_data():
     try:
         # Read CSV file
-        df = pd.read_csv('data.csv')
+        df = pd.read_csv('data/data.csv')
         
         # Extract required columns
         data = df[['Latitude', 'Longitude', 'Value']].to_dict(orient='records')
