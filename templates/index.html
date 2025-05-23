@@ -29,14 +29,15 @@
         .tooltip {
             position: absolute;
             padding: 0.75rem;
-            background: rgba(17, 24, 39, 0.9);
+            background: rgba(17, 24, 39, 0.95);
             color: white;
             border-radius: 0.5rem;
             font-size: 0.875rem;
             pointer-events: none;
             z-index: 1000;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            max-width: 300px;
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 320px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .tooltip-row {
@@ -48,11 +49,21 @@
         .tooltip-label {
             color: #9CA3AF;
             margin-right: 1rem;
+            font-weight: 500;
         }
 
         .tooltip-value {
             color: #F3F4F6;
-            font-weight: 500;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        }
+
+        .tooltip-header {
+            color: #60A5FA;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         input[type="range"] {
@@ -67,12 +78,10 @@
             cursor: crosshair !important;
         }
 
-        /* Ensure the canvas doesn't block pointer events when in picker mode */
         .cursor-crosshair .deck-canvas {
             pointer-events: all !important;
         }
 
-        /* Style for the controls panel */
         .controls-panel {
             position: fixed;
             top: 1rem;
@@ -84,29 +93,121 @@
             width: 18rem;
             z-index: 1000;
         }
+
+        /* Toggle switch styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .value-picker-active {
+            background-color: #eff6ff !important;
+            border-color: #3b82f6 !important;
+        }
+
+        .picked-value {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .copy-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-100 font-sans" 
+      data-default-opacity="{{ config.DEFAULT_MAP_OPACITY }}"
+      data-initial-radius="{{ config.INITIAL_HEATMAP_RADIUS }}"
+      data-initial-intensity="{{ config.INITIAL_HEATMAP_INTENSITY }}"
+      data-initial-threshold="{{ config.INITIAL_HEATMAP_THRESHOLD }}">
     <div id="map" class="relative"></div>
-    <div id="tooltip"
-        class="absolute bg-gray-900 bg-opacity-90 text-white text-sm rounded-lg shadow-lg p-3 max-w-xs z-[1000] pointer-events-none"
-        style="display: none;">
-        <!-- Tooltip content will be dynamically inserted by your JS -->
-        <!-- Example structure if you want to pre-define it for styling: -->
-        <!-- 
-        <div class="tooltip-row flex justify-between mb-1">
-            <span class="tooltip-label text-gray-400 mr-4">Latitude:</span>
-            <span class="tooltip-value text-gray-100 font-medium" id="tooltip-lat"></span>
-        </div>
-        <div class="tooltip-row flex justify-between">
-            <span class="tooltip-label text-gray-400 mr-4">Value:</span>
-            <span class="tooltip-value text-gray-100 font-medium" id="tooltip-value"></span>
-        </div>
-        -->
+    
+    <!-- Enhanced Tooltip -->
+    <div id="tooltip" class="tooltip" style="display: none;">
+        <!-- Content dynamically updated -->
     </div>
+
+    <!-- Controls Panel -->
     <div class="controls-panel">
         <div class="space-y-4">
+            <!-- Value Picker Toggle -->
+            <div class="bg-gray-50 p-3 rounded-lg border">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-sm font-medium text-gray-700">Value Picker</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="valuePickerToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p class="text-xs text-gray-500">Click on the map to get precise values</p>
+                <div id="pickedValueDisplay" style="display: none;" class="picked-value">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium">Picked Value</span>
+                        <button class="copy-button" id="copyValueBtn">Copy</button>
+                    </div>
+                    <div id="pickedValueContent"></div>
+                </div>
+            </div>
+
+            <!-- Existing Controls -->
             <div>
                 <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
                     Layer Opacity
@@ -148,31 +249,43 @@
             class="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 text-white text-xs rounded-md shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
             <h4 class="font-semibold text-sm mb-1">Controls Help:</h4>
             <ul class="list-disc list-inside space-y-1">
+                <li><strong>Value Picker:</strong> Toggle to enable precise value picking. Click on data points to get exact coordinates and values.</li>
                 <li><strong>Layer Opacity:</strong> Adjusts the transparency of the heatmap layer.</li>
-                <li><strong>Radius:</strong> Controls the radius of influence for each data point in pixels. Larger values create a more smoothed/spread-out heatmap.</li>
-                <li><strong>Intensity:</strong> Multiplies the weight of each data point. Higher values increase the apparent 'strength' of heatmap spots.</li>
-                <li><strong>Threshold:</strong> Sets the minimum normalized value a point must have to be drawn. Filters out low-value data points.</li>
+                <li><strong>Radius:</strong> Controls the radius of influence for each data point in pixels.</li>
+                <li><strong>Intensity:</strong> Multiplies the weight of each data point.</li>
+                <li><strong>Threshold:</strong> Sets the minimum normalized value a point must have to be drawn.</li>
             </ul>
-            <div
-                class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full w-3 h-3 bg-gray-800 rotate-45">
-            </div> <!-- Tooltip arrow -->
+            <div class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full w-3 h-3 bg-gray-800 rotate-45"></div>
         </div>
     </div>
 
     <script>
+        // Get configuration values from HTML data attributes
+        const bodyElement = document.body;
+        const appConfig = {
+            defaultMapOpacity: parseFloat(bodyElement.dataset.defaultOpacity),
+            initialHeatmapRadius: parseInt(bodyElement.dataset.initialRadius),
+            initialHeatmapIntensity: parseFloat(bodyElement.dataset.initialIntensity),
+            initialHeatmapThreshold: parseFloat(bodyElement.dataset.initialThreshold)
+        };
+
         // Initialize deck.gl
         let deckgl;
         let heatmapLayer;
+        let dataPointsLayer;
         let data = [];
         let valueRange = { min: 0, max: 1 };
         let colorScale = [];
-        let currentOpacity = {{ config.DEFAULT_MAP_OPACITY }};
+        let currentOpacity = appConfig.defaultMapOpacity;
+        let valuePickerMode = false;
+        let hoveredObject = null;
+        let pickedValue = null;
 
-        // Configuration for the heatmap, using values from Flask config
+        // Configuration for the heatmap
         let heatmapConfig = { 
-            radius: {{ config.INITIAL_HEATMAP_RADIUS }},
-            intensity: {{ config.INITIAL_HEATMAP_INTENSITY }},
-            threshold: {{ config.INITIAL_HEATMAP_THRESHOLD }}
+            radius: appConfig.initialHeatmapRadius,
+            intensity: appConfig.initialHeatmapIntensity,
+            threshold: appConfig.initialHeatmapThreshold
         };
 
         // OpenStreetMap tile layer configuration
@@ -227,21 +340,173 @@
                 threshold: heatmapConfig.threshold,
                 colorRange: colorRangeRGB,
                 opacity: currentOpacity,
-                pickable: true,
+                pickable: false,
                 parameters: {
                     depthTest: false
                 }
             });
         }
 
-        // Update heatmap when controls change
-        function updateHeatmap() {
+        // Create invisible data points layer for precise picking
+        function createDataPointsLayer() {
+            return new deck.ScatterplotLayer({
+                id: 'data-points',
+                data,
+                getPosition: d => [d.Longitude, d.Latitude],
+                getRadius: 3,
+                getFillColor: [255, 255, 255, 0], // Invisible
+                getLineColor: [255, 255, 255, 0], // Invisible
+                pickable: true,
+                visible: valuePickerMode,
+                radiusUnits: 'pixels',
+                radiusMinPixels: 3,
+                radiusMaxPixels: 10,
+                parameters: {
+                    depthTest: false
+                }
+            });
+        }
+
+        // Update all layers
+        function updateLayers() {
+            const layers = [new deck.TileLayer(OSM_TILE_LAYER)];
+            
             if (heatmapLayer) {
                 heatmapLayer = createHeatmapLayer();
-                deckgl.setProps({
-                    layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer]
-                });
+                layers.push(heatmapLayer);
             }
+            
+            if (dataPointsLayer) {
+                dataPointsLayer = createDataPointsLayer();
+                layers.push(dataPointsLayer);
+            }
+            
+            deckgl.setProps({ layers });
+        }
+
+        // Format number with appropriate precision
+        function formatValue(value) {
+            if (typeof value !== 'number') return value;
+            return value.toLocaleString(undefined, { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 6 
+            });
+        }
+
+        // Show tooltip with object information
+        function showTooltip(object, x, y) {
+            const tooltip = document.getElementById('tooltip');
+            if (!object) {
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            const normalizedValue = (object.Value - valueRange.min) / (valueRange.max - valueRange.min);
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-header">${valuePickerMode ? 'Data Point Details' : 'Hover Information'}</div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Latitude:</span>
+                    <span class="tooltip-value">${formatValue(object.Latitude)}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Longitude:</span>
+                    <span class="tooltip-value">${formatValue(object.Longitude)}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Value:</span>
+                    <span class="tooltip-value">${formatValue(object.Value)}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Normalized:</span>
+                    <span class="tooltip-value">${formatValue(normalizedValue)}</span>
+                </div>
+                ${object.Bathy ? `
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Bathymetry:</span>
+                    <span class="tooltip-value">${object.Bathy}</span>
+                </div>
+                ` : ''}
+                ${valuePickerMode ? '<div style="margin-top: 0.5rem; font-size: 0.75rem; color: #9CA3AF;">Click to pin this value</div>' : ''}
+            `;
+
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${x + 10}px`;
+            tooltip.style.top = `${y - 10}px`;
+
+            // Keep tooltip on screen
+            const rect = tooltip.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                tooltip.style.left = `${x - rect.width - 10}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                tooltip.style.top = `${y - rect.height - 10}px`;
+            }
+        }
+
+        // Handle picked value display
+        function displayPickedValue(object) {
+            pickedValue = object;
+            const display = document.getElementById('pickedValueDisplay');
+            const content = document.getElementById('pickedValueContent');
+            
+            const normalizedValue = (object.Value - valueRange.min) / (valueRange.max - valueRange.min);
+            
+            content.innerHTML = `
+                <div style="font-size: 0.75rem; line-height: 1.4;">
+                    <div><strong>Lat:</strong> ${formatValue(object.Latitude)}</div>
+                    <div><strong>Lon:</strong> ${formatValue(object.Longitude)}</div>
+                    <div><strong>Value:</strong> ${formatValue(object.Value)}</div>
+                    <div><strong>Norm:</strong> ${formatValue(normalizedValue)}</div>
+                </div>
+            `;
+            
+            display.style.display = 'block';
+            
+            // Log to console for debugging
+            console.log('Picked value:', {
+                latitude: object.Latitude,
+                longitude: object.Longitude,
+                value: object.Value,
+                normalized: normalizedValue
+            });
+        }
+
+        // Copy picked value to clipboard
+        function copyPickedValue() {
+            if (!pickedValue) return;
+            
+            const normalizedValue = (pickedValue.Value - valueRange.min) / (valueRange.max - valueRange.min);
+            const text = `Latitude: ${pickedValue.Latitude}\nLongitude: ${pickedValue.Longitude}\nValue: ${pickedValue.Value}\nNormalized: ${normalizedValue}`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyValueBtn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 1000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Toggle value picker mode
+        function toggleValuePickerMode() {
+            valuePickerMode = !valuePickerMode;
+            const mapContainer = document.getElementById('map');
+            const toggle = document.getElementById('valuePickerToggle');
+            const controlsPanel = document.querySelector('.controls-panel');
+            
+            if (valuePickerMode) {
+                mapContainer.classList.add('cursor-crosshair');
+                controlsPanel.querySelector('.bg-gray-50').classList.add('value-picker-active');
+            } else {
+                mapContainer.classList.remove('cursor-crosshair');
+                controlsPanel.querySelector('.bg-gray-50').classList.remove('value-picker-active');
+                document.getElementById('tooltip').style.display = 'none';
+                document.getElementById('pickedValueDisplay').style.display = 'none';
+            }
+            
+            updateLayers();
         }
 
         // Initialize the map
@@ -257,10 +522,23 @@
                 },
                 controller: true,
                 getCursor: ({ isDragging }) => {
+                    if (valuePickerMode && !isDragging) return 'crosshair';
                     return isDragging ? 'grabbing' : 'grab';
                 },
-                onClick: null,
-                onHover: null,
+                onHover: (info, event) => {
+                    hoveredObject = info.object;
+                    if (valuePickerMode && info.object) {
+                        showTooltip(info.object, event.center.x, event.center.y);
+                    } else {
+                        document.getElementById('tooltip').style.display = 'none';
+                    }
+                },
+                onClick: (info, event) => {
+                    if (valuePickerMode && info.object) {
+                        displayPickedValue(info.object);
+                        showTooltip(info.object, event.center.x, event.center.y);
+                    }
+                },
                 layers: [new deck.TileLayer(OSM_TILE_LAYER)]
             });
         }
@@ -286,6 +564,7 @@
                     const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
 
                     heatmapLayer = createHeatmapLayer();
+                    dataPointsLayer = createDataPointsLayer();
 
                     deckgl.setProps({
                         initialViewState: {
@@ -295,42 +574,45 @@
                             pitch: 0,
                             bearing: 0
                         },
-                        layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer]
+                        layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer, dataPointsLayer]
                     });
                 })
                 .catch(error => console.error('Error loading data:', error));
         }
 
-        // Add event listeners for controls
+        // Event listeners
+        document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
+        document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
+
         document.getElementById('radiusSlider').addEventListener('input', function (e) {
             heatmapConfig.radius = parseInt(e.target.value);
             document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
-            updateHeatmap();
+            updateLayers();
         });
 
         document.getElementById('intensitySlider').addEventListener('input', function (e) {
             heatmapConfig.intensity = parseFloat(e.target.value);
             document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
-            updateHeatmap();
+            updateLayers();
         });
 
         document.getElementById('thresholdSlider').addEventListener('input', function (e) {
             heatmapConfig.threshold = parseFloat(e.target.value);
             document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
-            updateHeatmap();
+            updateLayers();
         });
 
         document.getElementById('opacitySlider').addEventListener('input', function (e) {
             currentOpacity = parseFloat(e.target.value);
             document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
-            updateHeatmap();
+            updateLayers();
         });
 
         // Initialize the application
         initializeMap();
         loadData();
 
-        // Initialize slider values from defaults passed by Flask
+        // Initialize slider values from config
         document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
         document.getElementById('opacitySlider').value = currentOpacity;
         document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
