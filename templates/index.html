@@ -4,12 +4,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Interactive Heatmap</title>
+    <title>Interactive Heatmap Dashboard</title>
 
     <!-- Deck.gl -->
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
         html,
@@ -17,7 +19,8 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
         #map {
@@ -26,80 +29,113 @@
             position: relative;
         }
 
+        /* Glassmorphism Effects */
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+        }
+
+        .glass-dark {
+            background: rgba(17, 25, 40, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        /* Enhanced Tooltip */
         .tooltip {
             position: absolute;
-            padding: 0.75rem;
-            background: rgba(17, 24, 39, 0.95);
+            padding: 1rem;
+            background: rgba(17, 25, 40, 0.95);
+            backdrop-filter: blur(20px);
             color: white;
-            border-radius: 0.5rem;
+            border-radius: 12px;
             font-size: 0.875rem;
             pointer-events: none;
             z-index: 1000;
-            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            max-width: 320px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 360px;
+            border: 1px solid rgba(255, 255, 255, 0.125);
+            transform: translateY(-10px);
+            transition: all 0.2s ease-out;
         }
 
         .tooltip-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.375rem;
+            align-items: center;
         }
 
         .tooltip-label {
-            color: #9CA3AF;
+            color: #94a3b8;
             margin-right: 1rem;
             font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .tooltip-value {
-            color: #F3F4F6;
+            color: #f1f5f9;
             font-weight: 600;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+            font-size: 0.875rem;
         }
 
         .tooltip-header {
-            color: #60A5FA;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            padding-bottom: 0.25rem;
+            color: #60a5fa;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 1rem;
         }
 
-        input[type="range"] {
-            @apply h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            @apply appearance-none w-4 h-4 bg-blue-600 rounded-full;
-        }
-
-        .cursor-crosshair .deck-canvas {
-            cursor: crosshair !important;
-        }
-
-        .cursor-crosshair .deck-canvas {
-            pointer-events: all !important;
-        }
-
-        .controls-panel {
+        /* Enhanced Controls */
+        .controls-container {
             position: fixed;
             top: 1rem;
             right: 1rem;
-            background: white;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            width: 18rem;
+            width: 20rem;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
-        /* Toggle switch styles */
+        .control-panel {
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        .section-title {
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Modern Toggle Switch */
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 48px;
-            height: 24px;
+            width: 52px;
+            height: 28px;
         }
 
         .toggle-switch input {
@@ -115,69 +151,285 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #cbd5e1;
-            transition: 0.3s;
-            border-radius: 24px;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 28px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 22px;
+            width: 22px;
             left: 3px;
             bottom: 3px;
-            background-color: white;
-            transition: 0.3s;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
         input:checked + .toggle-slider {
-            background-color: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
         }
 
         input:checked + .toggle-slider:before {
             transform: translateX(24px);
         }
 
-        .value-picker-active {
-            background-color: #eff6ff !important;
-            border-color: #3b82f6 !important;
+        /* Enhanced Range Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, rgba(226, 232, 240, 0.3), rgba(203, 213, 225, 0.5));
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        .picked-value {
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-active {
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-            font-size: 0.875rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        .copy-button {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .status-inactive {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
             color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
         }
 
-        .copy-button:hover {
-            background: rgba(255, 255, 255, 0.3);
+        /* Value Display Cards */
+        .value-card {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(226, 232, 240, 0.9));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .value-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 249, 255, 0.9));
+        }
+
+        .value-card-header {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .value-card-content {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Collapsible Sections */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(17, 25, 40, 0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Legend Styles */
+        .legend {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .legend-gradient {
+            height: 12px;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .controls-container {
+                position: fixed;
+                bottom: 1rem;
+                right: 1rem;
+                left: 1rem;
+                top: auto;
+                width: auto;
+                max-height: 60vh;
+                overflow-y: auto;
+            }
+
+            .control-panel {
+                padding: 1rem;
+            }
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Keyboard shortcuts display */
+        .kbd {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            color: #374151;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
         }
     </style>
 </head>
 
-<body class="bg-gray-100 font-sans" 
+<body class="bg-gradient-to-br from-blue-400 to-purple-600 font-sans" 
       data-default-opacity="{{ config.DEFAULT_MAP_OPACITY }}"
       data-initial-radius="{{ config.INITIAL_HEATMAP_RADIUS }}"
       data-initial-intensity="{{ config.INITIAL_HEATMAP_INTENSITY }}"
       data-initial-threshold="{{ config.INITIAL_HEATMAP_THRESHOLD }}">
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-white text-lg font-semibold">Loading Heatmap Data...</p>
+            <p class="text-blue-200 text-sm">Preparing visualization</p>
+        </div>
+    </div>
+
     <div id="map" class="relative"></div>
     
     <!-- Enhanced Tooltip -->
@@ -185,81 +437,206 @@
         <!-- Content dynamically updated -->
     </div>
 
-    <!-- Controls Panel -->
-    <div class="controls-panel">
-        <div class="space-y-4">
-            <!-- Value Picker Toggle -->
-            <div class="bg-gray-50 p-3 rounded-lg border">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-sm font-medium text-gray-700">Value Picker</label>
+    <!-- Legend -->
+    <div id="legend" class="legend fixed bottom-4 left-4 fade-in-up w-80" style="display: none">
+        <div class="flex items-center gap-2 mb-2">
+            <i data-lucide="palette" class="w-4 h-4 text-blue-600"></i>
+            <span class="font-semibold text-sm text-gray-700">Value Scale</span>
+        </div>
+        <div id="legendGradient" class="legend-gradient"></div>
+        <div id="legendLabels" class="legend-labels"></div>
+    </div>
+
+    <!-- Main Controls Container -->
+    <div class="controls-container custom-scrollbar">
+        <!-- Status Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="section-title text-white">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                System Status
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div id="dataStatus" class="status-indicator status-inactive">
+                    <i data-lucide="database" class="w-3 h-3"></i>
+                    <span>Loading</span>
+                </div>
+                <div id="pickerStatus" class="status-indicator status-inactive">
+                    <i data-lucide="crosshair" class="w-3 h-3"></i>
+                    <span>Inactive</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Statistics Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="section-title text-white">
+                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                Data Statistics
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="value-card">
+                    <div class="value-card-header">Total Points</div>
+                    <div id="totalPoints" class="value-card-content">-</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-card-header">Data Range</div>
+                    <div id="dataRange" class="value-card-content">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Value Picker Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="collapsible-header" onclick="toggleSection('valuePickerSection')">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="crosshair" class="w-4 h-4 text-white"></i>
+                    <span class="text-white font-semibold">Value Picker</span>
+                </div>
+                <i id="valuePickerIcon" data-lucide="chevron-down" class="w-4 h-4 text-white transition-transform"></i>
+            </div>
+            <div id="valuePickerSection" class="collapsible-content">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-white">Enable Picker Mode</span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="valuePickerToggle">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
-                <p class="text-xs text-gray-500">Click on the map to get precise values</p>
-                <div id="pickedValueDisplay" style="display: none;" class="picked-value">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="font-medium">Picked Value</span>
-                        <button class="copy-button" id="copyValueBtn">Copy</button>
+                <p class="text-xs text-blue-100 mb-3">
+                    <kbd class="kbd">Click</kbd> on data points to get precise values
+                </p>
+                <div id="pickedValueDisplay" style="display: none;" class="value-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="value-card-header">Picked Location</span>
+                        <button class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors" 
+                                id="copyValueBtn">
+                            <i data-lucide="copy" class="w-3 h-3 inline mr-1"></i>Copy
+                        </button>
                     </div>
-                    <div id="pickedValueContent"></div>
+                    <div id="pickedValueContent" class="value-card-content"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Existing Controls -->
-            <div>
-                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
-                    Layer Opacity
-                    <span id="opacityValue" class="text-blue-600">{{ config.DEFAULT_MAP_OPACITY }}</span>
-                </label>
-                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="{{ config.DEFAULT_MAP_OPACITY }}" class="w-full" />
+        <!-- Visualization Controls Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="collapsible-header" onclick="toggleSection('visualizationSection')">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4 text-white"></i>
+                    <span class="text-white font-semibold">Visualization</span>
+                </div>
+                <i id="visualizationIcon" data-lucide="chevron-down" class="w-4 h-4 text-white transition-transform"></i>
             </div>
-            <div>
-                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
-                    Radius
-                    <span id="radiusValue" class="text-blue-600">{{ config.INITIAL_HEATMAP_RADIUS }}px</span>
-                </label>
-                <input type="range" id="radiusSlider" min="1" max="100" step="1" value="{{ config.INITIAL_HEATMAP_RADIUS }}" class="w-full" />
+            <div id="visualizationSection" class="collapsible-content">
+                <div class="space-y-4">
+                    <div>
+                        <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                            <span>Layer Opacity</span>
+                            <span id="opacityValue" class="text-blue-100 font-semibold">{{ config.DEFAULT_MAP_OPACITY }}</span>
+                        </label>
+                        <input type="range" id="opacitySlider" min="0" max="1" step="0.01" 
+                               value="{{ config.DEFAULT_MAP_OPACITY }}" class="w-full" />
+                    </div>
+                    <div>
+                        <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                            <span>Radius</span>
+                            <span id="radiusValue" class="text-blue-100 font-semibold">{{ config.INITIAL_HEATMAP_RADIUS }}px</span>
+                        </label>
+                        <input type="range" id="radiusSlider" min="1" max="100" step="1" 
+                               value="{{ config.INITIAL_HEATMAP_RADIUS }}" class="w-full" />
+                    </div>
+                    <div>
+                        <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                            <span>Intensity</span>
+                            <span id="intensityValue" class="text-blue-100 font-semibold">{{ "%.1f"|format(config.INITIAL_HEATMAP_INTENSITY|float) }}</span>
+                        </label>
+                        <input type="range" id="intensitySlider" min="0" max="5" step="0.1" 
+                               value="{{ config.INITIAL_HEATMAP_INTENSITY }}" class="w-full" />
+                    </div>
+                    <div>
+                        <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                            <span>Threshold</span>
+                            <span id="thresholdValue" class="text-blue-100 font-semibold">{{ "%.2f"|format(config.INITIAL_HEATMAP_THRESHOLD|float) }}</span>
+                        </label>
+                        <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" 
+                               value="{{ config.INITIAL_HEATMAP_THRESHOLD }}" class="w-full" />
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
-                    Intensity
-                    <span id="intensityValue" class="text-blue-600">{{ "%.1f"|format(config.INITIAL_HEATMAP_INTENSITY|float) }}</span>
-                </label>
-                <input type="range" id="intensitySlider" min="0" max="5" step="0.1" value="{{ config.INITIAL_HEATMAP_INTENSITY }}" class="w-full" />
+        </div>
+
+        <!-- Tools Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="section-title text-white">
+                <i data-lucide="tool" class="w-4 h-4"></i>
+                Tools
             </div>
-            <div>
-                <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-2">
-                    Threshold
-                    <span id="thresholdValue" class="text-blue-600">{{ "%.2f"|format(config.INITIAL_HEATMAP_THRESHOLD|float) }}</span>
-                </label>
-                <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="{{ config.INITIAL_HEATMAP_THRESHOLD }}" class="w-full" />
+            <div class="grid grid-cols-2 gap-2">
+                <button id="zoomToExtentBtn" class="px-3 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
+                    <i data-lucide="maximize" class="w-3 h-3 inline mr-1"></i>
+                    Zoom to Fit
+                </button>
+                <button id="exportDataBtn" class="px-3 py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors">
+                    <i data-lucide="download" class="w-3 h-3 inline mr-1"></i>
+                    Export CSV
+                </button>
+                <button id="toggleLegendBtn" class="px-3 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors">
+                    <i data-lucide="palette" class="w-3 h-3 inline mr-1"></i>
+                    Legend
+                </button>
+                <button id="screenshotBtn" class="px-3 py-2 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors">
+                    <i data-lucide="camera" class="w-3 h-3 inline mr-1"></i>
+                    Screenshot
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Help Icon and Tooltip -->
-    <div class="group absolute bottom-4 left-4 z-[1000]">
-        <button id="helpIcon"
-            class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-            <span class="text-xl font-bold">?</span>
+    <!-- Help Panel -->
+    <div class="fixed bottom-4 right-4 z-[1000]">
+        <button id="helpBtn" class="glass-dark rounded-full p-3 text-white hover:bg-white hover:bg-opacity-20 transition-all duration-300 group">
+            <i data-lucide="help-circle" class="w-5 h-5"></i>
         </button>
-        <div id="helpTooltip"
-            class="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 text-white text-xs rounded-md shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <h4 class="font-semibold text-sm mb-1">Controls Help:</h4>
-            <ul class="list-disc list-inside space-y-1">
-                <li><strong>Value Picker:</strong> Toggle to enable precise value picking. Click on data points to get exact coordinates and values.</li>
-                <li><strong>Layer Opacity:</strong> Adjusts the transparency of the heatmap layer.</li>
-                <li><strong>Radius:</strong> Controls the radius of influence for each data point in pixels.</li>
-                <li><strong>Intensity:</strong> Multiplies the weight of each data point.</li>
-                <li><strong>Threshold:</strong> Sets the minimum normalized value a point must have to be drawn.</li>
-            </ul>
-            <div class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full w-3 h-3 bg-gray-800 rotate-45"></div>
+        <div id="helpPanel" class="absolute bottom-16 right-0 w-80 glass-dark rounded-lg p-4 text-white text-sm opacity-0 invisible transition-all duration-300 transform translate-y-2">
+            <h4 class="font-bold text-base mb-3 text-blue-300">Keyboard Shortcuts</h4>
+            <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                    <span>Toggle Value Picker</span>
+                    <kbd class="kbd">P</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Toggle Legend</span>
+                    <kbd class="kbd">L</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Zoom to Extent</span>
+                    <kbd class="kbd">F</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Export Data</span>
+                    <kbd class="kbd">E</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Help</span>
+                    <kbd class="kbd">H</kbd>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-white border-opacity-20">
+                <h5 class="font-semibold mb-2 text-blue-300">Features</h5>
+                <ul class="space-y-1 text-xs text-blue-100">
+                    <li>• Hover over data points for instant feedback</li>
+                    <li>• Use value picker for precise measurements</li>
+                    <li>• Adjust visualization parameters in real-time</li>
+                    <li>• Export data and screenshots</li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
         // Get configuration values from HTML data attributes
         const bodyElement = document.body;
         const appConfig = {
@@ -269,7 +646,7 @@
             initialHeatmapThreshold: parseFloat(bodyElement.dataset.initialThreshold)
         };
 
-        // Initialize deck.gl
+        // Application state
         let deckgl;
         let heatmapLayer;
         let dataPointsLayer;
@@ -280,6 +657,7 @@
         let valuePickerMode = false;
         let hoveredObject = null;
         let pickedValue = null;
+        let legendVisible = false;
 
         // Configuration for the heatmap
         let heatmapConfig = { 
@@ -310,7 +688,7 @@
             }
         };
 
-        // Helper function to convert hex to RGB
+        // Utility Functions
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? {
@@ -320,7 +698,31 @@
             } : null;
         }
 
-        // Create heatmap layer
+        function formatValue(value, decimals = 2) {
+            if (typeof value !== 'number') return value;
+            return value.toLocaleString(undefined, { 
+                minimumFractionDigits: decimals, 
+                maximumFractionDigits: Math.min(decimals, 6) 
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            // Simple notification system
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-white text-sm font-semibold z-50 transition-all duration-300 ${
+                type === 'success' ? 'bg-green-600' : 
+                type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Layer Creation Functions
         function createHeatmapLayer() {
             const colorRangeRGB = colorScale.map(([_, hexColor]) => {
                 const rgb = hexToRgb(hexColor);
@@ -347,27 +749,25 @@
             });
         }
 
-        // Create invisible data points layer for precise picking
         function createDataPointsLayer() {
             return new deck.ScatterplotLayer({
                 id: 'data-points',
                 data,
                 getPosition: d => [d.Longitude, d.Latitude],
-                getRadius: 3,
-                getFillColor: [255, 255, 255, 0], // Invisible
-                getLineColor: [255, 255, 255, 0], // Invisible
+                getRadius: 4,
+                getFillColor: [255, 255, 255, 0],
+                getLineColor: [255, 255, 255, 0],
                 pickable: true,
                 visible: valuePickerMode,
                 radiusUnits: 'pixels',
-                radiusMinPixels: 3,
-                radiusMaxPixels: 10,
+                radiusMinPixels: 4,
+                radiusMaxPixels: 12,
                 parameters: {
                     depthTest: false
                 }
             });
         }
 
-        // Update all layers
         function updateLayers() {
             const layers = [new deck.TileLayer(OSM_TILE_LAYER)];
             
@@ -384,16 +784,7 @@
             deckgl.setProps({ layers });
         }
 
-        // Format number with appropriate precision
-        function formatValue(value) {
-            if (typeof value !== 'number') return value;
-            return value.toLocaleString(undefined, { 
-                minimumFractionDigits: 2, 
-                maximumFractionDigits: 6 
-            });
-        }
-
-        // Show tooltip with object information
+        // UI Functions
         function showTooltip(object, x, y) {
             const tooltip = document.getElementById('tooltip');
             if (!object) {
@@ -404,47 +795,52 @@
             const normalizedValue = (object.Value - valueRange.min) / (valueRange.max - valueRange.min);
             
             tooltip.innerHTML = `
-                <div class="tooltip-header">${valuePickerMode ? 'Data Point Details' : 'Hover Information'}</div>
-                <div class="tooltip-row">
-                    <span class="tooltip-label">Latitude:</span>
-                    <span class="tooltip-value">${formatValue(object.Latitude)}</span>
+                <div class="tooltip-header">
+                    <i data-lucide="map-pin" class="w-4 h-4 inline mr-2"></i>
+                    ${valuePickerMode ? 'Data Point Details' : 'Location Information'}
                 </div>
                 <div class="tooltip-row">
-                    <span class="tooltip-label">Longitude:</span>
-                    <span class="tooltip-value">${formatValue(object.Longitude)}</span>
+                    <span class="tooltip-label">Latitude</span>
+                    <span class="tooltip-value">${formatValue(object.Latitude, 6)}</span>
                 </div>
                 <div class="tooltip-row">
-                    <span class="tooltip-label">Value:</span>
-                    <span class="tooltip-value">${formatValue(object.Value)}</span>
+                    <span class="tooltip-label">Longitude</span>
+                    <span class="tooltip-value">${formatValue(object.Longitude, 6)}</span>
                 </div>
                 <div class="tooltip-row">
-                    <span class="tooltip-label">Normalized:</span>
-                    <span class="tooltip-value">${formatValue(normalizedValue)}</span>
+                    <span class="tooltip-label">Value</span>
+                    <span class="tooltip-value">${formatValue(object.Value, 4)}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Normalized</span>
+                    <span class="tooltip-value">${formatValue(normalizedValue, 4)}</span>
                 </div>
                 ${object.Bathy ? `
                 <div class="tooltip-row">
-                    <span class="tooltip-label">Bathymetry:</span>
+                    <span class="tooltip-label">Bathymetry</span>
                     <span class="tooltip-value">${object.Bathy}</span>
                 </div>
                 ` : ''}
-                ${valuePickerMode ? '<div style="margin-top: 0.5rem; font-size: 0.75rem; color: #9CA3AF;">Click to pin this value</div>' : ''}
+                ${valuePickerMode ? '<div style="margin-top: 0.75rem; font-size: 0.75rem; color: #94a3b8; text-align: center;"><i data-lucide="mouse-pointer-click" class="w-3 h-3 inline mr-1"></i>Click to pin this value</div>' : ''}
             `;
 
-            tooltip.style.display = 'block';
-            tooltip.style.left = `${x + 10}px`;
-            tooltip.style.top = `${y - 10}px`;
+            // Re-initialize Lucide icons in tooltip
+            lucide.createIcons();
 
-            // Keep tooltip on screen
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${x + 15}px`;
+            tooltip.style.top = `${y - 15}px`;
+
+            // Smart positioning
             const rect = tooltip.getBoundingClientRect();
             if (rect.right > window.innerWidth) {
-                tooltip.style.left = `${x - rect.width - 10}px`;
+                tooltip.style.left = `${x - rect.width - 15}px`;
             }
             if (rect.bottom > window.innerHeight) {
-                tooltip.style.top = `${y - rect.height - 10}px`;
+                tooltip.style.top = `${y - rect.height - 15}px`;
             }
         }
 
-        // Handle picked value display
         function displayPickedValue(object) {
             pickedValue = object;
             const display = document.getElementById('pickedValueDisplay');
@@ -453,17 +849,17 @@
             const normalizedValue = (object.Value - valueRange.min) / (valueRange.max - valueRange.min);
             
             content.innerHTML = `
-                <div style="font-size: 0.75rem; line-height: 1.4;">
-                    <div><strong>Lat:</strong> ${formatValue(object.Latitude)}</div>
-                    <div><strong>Lon:</strong> ${formatValue(object.Longitude)}</div>
-                    <div><strong>Value:</strong> ${formatValue(object.Value)}</div>
-                    <div><strong>Norm:</strong> ${formatValue(normalizedValue)}</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div><strong>Lat:</strong> ${formatValue(object.Latitude, 4)}</div>
+                    <div><strong>Lon:</strong> ${formatValue(object.Longitude, 4)}</div>
+                    <div><strong>Value:</strong> ${formatValue(object.Value, 4)}</div>
+                    <div><strong>Norm:</strong> ${formatValue(normalizedValue, 4)}</div>
                 </div>
             `;
             
             display.style.display = 'block';
+            showNotification('Value picked successfully!', 'success');
             
-            // Log to console for debugging
             console.log('Picked value:', {
                 latitude: object.Latitude,
                 longitude: object.Longitude,
@@ -472,7 +868,136 @@
             });
         }
 
-        // Copy picked value to clipboard
+        function updateDataStatistics() {
+            document.getElementById('totalPoints').textContent = data.length.toLocaleString();
+            document.getElementById('dataRange').textContent = `${formatValue(valueRange.min, 1)} - ${formatValue(valueRange.max, 1)}`;
+        }
+
+        function createLegend() {
+            const legendGradient = document.getElementById('legendGradient');
+            const legendLabels = document.getElementById('legendLabels');
+            
+            if (colorScale.length > 0) {
+                // Create gradient string
+                const gradientStops = colorScale.map(([value, color]) => `${color} ${value * 100}%`).join(', ');
+                legendGradient.style.background = `linear-gradient(to right, ${gradientStops})`;
+                
+                // Create labels
+                // truncate to 2 decimal places
+                const minLabel = formatValue(valueRange.min, 2);
+                const maxLabel = formatValue(valueRange.max, 2);
+                const midLabel = formatValue((valueRange.min + valueRange.max) / 2, 2);
+                
+                legendLabels.innerHTML = `
+                    <span>${minLabel}</span>
+                    <span>${midLabel}</span>
+                    <span>${maxLabel}</span>
+                `;
+            }
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const icon = document.getElementById(sectionId.replace('Section', 'Icon'));
+            
+            section.classList.toggle('collapsed');
+            icon.style.transform = section.classList.contains('collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        // Core Functions
+        function toggleValuePickerMode() {
+            valuePickerMode = !valuePickerMode;
+            const mapContainer = document.getElementById('map');
+            const pickerStatus = document.getElementById('pickerStatus');
+            
+            if (valuePickerMode) {
+                mapContainer.classList.add('cursor-crosshair');
+                pickerStatus.className = 'status-indicator status-active';
+                pickerStatus.innerHTML = '<i data-lucide="crosshair" class="w-3 h-3"></i><span>Active</span>';
+                showNotification('Value picker mode enabled', 'success');
+            } else {
+                mapContainer.classList.remove('cursor-crosshair');
+                pickerStatus.className = 'status-indicator status-inactive';
+                pickerStatus.innerHTML = '<i data-lucide="crosshair" class="w-3 h-3"></i><span>Inactive</span>';
+                document.getElementById('tooltip').style.display = 'none';
+                document.getElementById('pickedValueDisplay').style.display = 'none';
+                showNotification('Value picker mode disabled', 'info');
+            }
+            
+            lucide.createIcons();
+            updateLayers();
+        }
+
+        function zoomToExtent() {
+            if (data.length === 0) return;
+            
+            const lats = data.map(d => d.Latitude);
+            const lons = data.map(d => d.Longitude);
+            const bounds = {
+                minLat: Math.min(...lats),
+                maxLat: Math.max(...lats),
+                minLon: Math.min(...lons),
+                maxLon: Math.max(...lons)
+            };
+            
+            const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+            const centerLon = (bounds.minLon + bounds.maxLon) / 2;
+            
+            // Calculate appropriate zoom level
+            const latDiff = bounds.maxLat - bounds.minLat;
+            const lonDiff = bounds.maxLon - bounds.minLon;
+            const maxDiff = Math.max(latDiff, lonDiff);
+            const zoom = Math.max(2, Math.min(12, 8 - Math.log2(maxDiff)));
+            
+            deckgl.setProps({
+                initialViewState: {
+                    longitude: centerLon,
+                    latitude: centerLat,
+                    zoom: zoom,
+                    pitch: 0,
+                    bearing: 0,
+                    transitionDuration: 1000,
+                    transitionInterpolator: new deck.FlyToInterpolator()
+                }
+            });
+            
+            showNotification('Zoomed to data extent', 'success');
+        }
+
+        function exportData() {
+            if (data.length === 0) {
+                showNotification('No data to export', 'error');
+                return;
+            }
+            
+            const csvContent = [
+                'Latitude,Longitude,Value',
+                ...data.map(d => `${d.Latitude},${d.Longitude},${d.Value}`)
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `heatmap_data_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showNotification('Data exported successfully', 'success');
+        }
+
+        function toggleLegend() {
+            const legend = document.getElementById('legend');
+            legendVisible = !legendVisible;
+            legend.style.display = legendVisible ? 'block' : 'none';
+            
+            const btn = document.getElementById('toggleLegendBtn');
+            btn.innerHTML = `<i data-lucide="palette" class="w-3 h-3 inline mr-1"></i>${legendVisible ? 'Hide' : 'Show'} Legend`;
+            lucide.createIcons();
+            
+            showNotification(`Legend ${legendVisible ? 'shown' : 'hidden'}`, 'info');
+        }
+
         function copyPickedValue() {
             if (!pickedValue) return;
             
@@ -481,32 +1006,18 @@
             
             navigator.clipboard.writeText(text).then(() => {
                 const btn = document.getElementById('copyValueBtn');
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 1000);
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="check" class="w-3 h-3 inline mr-1"></i>Copied!';
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    lucide.createIcons();
+                }, 1500);
+                showNotification('Value copied to clipboard', 'success');
             }).catch(err => {
                 console.error('Failed to copy: ', err);
+                showNotification('Failed to copy value', 'error');
             });
-        }
-
-        // Toggle value picker mode
-        function toggleValuePickerMode() {
-            valuePickerMode = !valuePickerMode;
-            const mapContainer = document.getElementById('map');
-            const toggle = document.getElementById('valuePickerToggle');
-            const controlsPanel = document.querySelector('.controls-panel');
-            
-            if (valuePickerMode) {
-                mapContainer.classList.add('cursor-crosshair');
-                controlsPanel.querySelector('.bg-gray-50').classList.add('value-picker-active');
-            } else {
-                mapContainer.classList.remove('cursor-crosshair');
-                controlsPanel.querySelector('.bg-gray-50').classList.remove('value-picker-active');
-                document.getElementById('tooltip').style.display = 'none';
-                document.getElementById('pickedValueDisplay').style.display = 'none';
-            }
-            
-            updateLayers();
         }
 
         // Initialize the map
@@ -546,7 +1057,10 @@
         // Load data and create visualization
         function loadData() {
             fetch('/data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load data');
+                    return response.json();
+                })
                 .then(result => {
                     data = result.data;
                     valueRange = result.valueRange;
@@ -558,6 +1072,17 @@
                         colorScaleLength: colorScale.length
                     });
 
+                    // Update UI
+                    updateDataStatistics();
+                    createLegend();
+                    
+                    // Update status
+                    const dataStatus = document.getElementById('dataStatus');
+                    dataStatus.className = 'status-indicator status-active';
+                    dataStatus.innerHTML = '<i data-lucide="database" class="w-3 h-3"></i><span>Loaded</span>';
+                    lucide.createIcons();
+
+                    // Center map on data
                     const lats = data.map(d => d.Latitude);
                     const lons = data.map(d => d.Longitude);
                     const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
@@ -576,52 +1101,117 @@
                         },
                         layers: [new deck.TileLayer(OSM_TILE_LAYER), heatmapLayer, dataPointsLayer]
                     });
+
+                    // Hide loading overlay
+                    setTimeout(() => {
+                        document.getElementById('loadingOverlay').style.opacity = '0';
+                        setTimeout(() => {
+                            document.getElementById('loadingOverlay').style.display = 'none';
+                        }, 300);
+                    }, 1000);
+
+                    showNotification('Data loaded successfully', 'success');
                 })
-                .catch(error => console.error('Error loading data:', error));
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    showNotification('Failed to load data', 'error');
+                    
+                    // Hide loading overlay on error
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                });
         }
 
-        // Event listeners
-        document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
-        document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Control event listeners
+            document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
+            document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
+            document.getElementById('zoomToExtentBtn').addEventListener('click', zoomToExtent);
+            document.getElementById('exportDataBtn').addEventListener('click', exportData);
+            document.getElementById('toggleLegendBtn').addEventListener('click', toggleLegend);
+            
+            // Help panel toggle
+            const helpBtn = document.getElementById('helpBtn');
+            const helpPanel = document.getElementById('helpPanel');
+            let helpVisible = false;
+            
+            helpBtn.addEventListener('click', () => {
+                helpVisible = !helpVisible;
+                if (helpVisible) {
+                    helpPanel.classList.remove('opacity-0', 'invisible', 'translate-y-2');
+                } else {
+                    helpPanel.classList.add('opacity-0', 'invisible', 'translate-y-2');
+                }
+            });
 
-        document.getElementById('radiusSlider').addEventListener('input', function (e) {
-            heatmapConfig.radius = parseInt(e.target.value);
-            document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
-            updateLayers();
-        });
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return; // Don't trigger when typing in inputs
+                
+                switch(e.key.toLowerCase()) {
+                    case 'p':
+                        e.preventDefault();
+                        document.getElementById('valuePickerToggle').click();
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        toggleLegend();
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        zoomToExtent();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        exportData();
+                        break;
+                    case 'h':
+                        e.preventDefault();
+                        helpBtn.click();
+                        break;
+                }
+            });
 
-        document.getElementById('intensitySlider').addEventListener('input', function (e) {
-            heatmapConfig.intensity = parseFloat(e.target.value);
-            document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
-            updateLayers();
-        });
+            // Slider event listeners
+            document.getElementById('radiusSlider').addEventListener('input', function (e) {
+                heatmapConfig.radius = parseInt(e.target.value);
+                document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
+                updateLayers();
+            });
 
-        document.getElementById('thresholdSlider').addEventListener('input', function (e) {
-            heatmapConfig.threshold = parseFloat(e.target.value);
-            document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
-            updateLayers();
-        });
+            document.getElementById('intensitySlider').addEventListener('input', function (e) {
+                heatmapConfig.intensity = parseFloat(e.target.value);
+                document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
+                updateLayers();
+            });
 
-        document.getElementById('opacitySlider').addEventListener('input', function (e) {
-            currentOpacity = parseFloat(e.target.value);
+            document.getElementById('thresholdSlider').addEventListener('input', function (e) {
+                heatmapConfig.threshold = parseFloat(e.target.value);
+                document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
+                updateLayers();
+            });
+
+            document.getElementById('opacitySlider').addEventListener('input', function (e) {
+                currentOpacity = parseFloat(e.target.value);
+                document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
+                updateLayers();
+            });
+
+            // Initialize the application
+            initializeMap();
+            loadData();
+
+            // Initialize slider values from config
             document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
-            updateLayers();
+            document.getElementById('opacitySlider').value = currentOpacity;
+            document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
+            document.getElementById('radiusSlider').value = heatmapConfig.radius;
+            document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
+            document.getElementById('intensitySlider').value = heatmapConfig.intensity;
+            document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
+            document.getElementById('thresholdSlider').value = heatmapConfig.threshold;
         });
-
-        // Initialize the application
-        initializeMap();
-        loadData();
-
-        // Initialize slider values from config
-        document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
-        document.getElementById('opacitySlider').value = currentOpacity;
-        document.getElementById('radiusValue').textContent = heatmapConfig.radius + 'px';
-        document.getElementById('radiusSlider').value = heatmapConfig.radius;
-        document.getElementById('intensityValue').textContent = heatmapConfig.intensity.toFixed(1);
-        document.getElementById('intensitySlider').value = heatmapConfig.intensity;
-        document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
-        document.getElementById('thresholdSlider').value = heatmapConfig.threshold;
     </script>
 </body>
 
-</html> 
+</html>
