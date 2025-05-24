@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sound Propagation Visualization</title>
+
+    <!-- Deck.gl -->
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        /* Glassmorphism Effects */
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+        }
+
+        .glass-dark {
+            background: rgba(17, 25, 40, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.5);
+        }
+
+        /* Timeline Controls */
+        .timeline-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 800px;
+            z-index: 1000;
+        }
+
+        .timeline-panel {
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .timeline-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, rgba(59, 130, 246, 0.3), rgba(147, 197, 253, 0.5));
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .timeline-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+        }
+
+        .timeline-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Control Buttons */
+        .control-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 12px;
+            padding: 0.75rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Info Panel */
+        .info-container {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            width: 20rem;
+            z-index: 1000;
+        }
+
+        .info-panel {
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .info-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .info-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+        }
+
+        /* Navigation */
+        .nav-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            border: none;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(59, 130, 246, 0.3);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading-spinner">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-container">
+        <a href="/" class="nav-btn">
+            <i data-lucide="arrow-left"></i>
+            Back to Heatmap
+        </a>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-container">
+        <div class="info-panel glass-dark">
+            <div class="info-title">
+                <i data-lucide="radio"></i>
+                Sound Propagation
+            </div>
+            <div class="info-item">
+                <span class="info-label">Current Time:</span>
+                <span class="info-value" id="current-time">0.00s</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Active Points:</span>
+                <span class="info-value" id="active-points">0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Max Intensity:</span>
+                <span class="info-value" id="max-intensity">0.00</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Center:</span>
+                <span class="info-value" id="center-coords">Loading...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Data Points:</span>
+                <span class="info-value" id="data-points">Loading...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Timeline Controls -->
+    <div class="timeline-container">
+        <div class="timeline-panel glass-dark">
+            <div class="flex items-center gap-4">
+                <button id="play-pause-btn" class="control-btn">
+                    <i data-lucide="play" id="play-icon"></i>
+                    <i data-lucide="pause" id="pause-icon" style="display: none;"></i>
+                </button>
+                <button id="reset-btn" class="control-btn">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+                <div class="flex-1 mx-4">
+                    <input type="range" id="timeline-slider" class="timeline-slider" 
+                           min="0" max="100" value="0" step="1">
+                </div>
+                <div class="text-white font-mono text-sm">
+                    <span id="time-display">0.00s / 10.00s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Global variables
+        let deckgl;
+        let propagationData = null;
+        let currentFrame = 0;
+        let isPlaying = false;
+        let animationId = null;
+        let totalFrames = 30;
+        let animationSpeed = 300; // ms per frame (smooth animation)
+
+        // Initialize the application
+        async function init() {
+            try {
+                console.log('Loading propagation data...');
+                const response = await fetch('/propagation-data');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                propagationData = await response.json();
+                
+                // Check if there's an error in the response
+                if (propagationData.error) {
+                    throw new Error(propagationData.error);
+                }
+                
+                console.log('Propagation data loaded:', propagationData);
+                
+                // Validate required data structure
+                if (!propagationData.center || !propagationData.frames || !propagationData.timeSteps) {
+                    throw new Error('Invalid propagation data structure');
+                }
+                
+                totalFrames = propagationData.timeSteps;
+                
+                // Update UI
+                updateInfoPanel();
+                document.getElementById('timeline-slider').max = totalFrames - 1;
+                
+                // Initialize map
+                initializeMap();
+                
+                // Hide loading spinner
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML = 
+                    `<div class="text-red-500 p-4 text-center">
+                        <div class="text-lg font-bold mb-2">Error loading data</div>
+                        <div class="text-sm">${error.message}</div>
+                        <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Retry
+                        </button>
+                    </div>`;
+            }
+        }
+
+        function initializeMap() {
+            if (!propagationData || !propagationData.center) {
+                console.error('Propagation data not loaded or missing center point');
+                return;
+            }
+            
+            // Calculate initial view state from center point
+            const center = propagationData.center;
+            
+            deckgl = new deck.DeckGL({
+                container: 'map',
+                mapStyle: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+                initialViewState: {
+                    longitude: center.longitude,
+                    latitude: center.latitude,
+                    zoom: 8,
+                    pitch: 0,
+                    bearing: 0
+                },
+                controller: true,
+                layers: []
+            });
+
+            // Update visualization with initial frame
+            updateVisualization();
+        }
+
+        function updateVisualization() {
+            if (!propagationData || !deckgl || !propagationData.center || !propagationData.frames) {
+                console.warn('Cannot update visualization: missing data or map not initialized');
+                return;
+            }
+
+            const frameData = propagationData.frames[currentFrame] || [];
+            const center = propagationData.center;
+            
+            // Create smooth wave visualization
+            const layers = [];
+            const currentTime = (currentFrame / (totalFrames - 1)) * 10;
+            
+            // Create smooth gradient wave effect
+            const smoothWaveData = [];
+            
+            // Generate smooth wave front
+            if (frameData.length > 0) {
+                // Sort points by distance for smooth wave front
+                const sortedData = [...frameData].sort((a, b) => a.distance - b.distance);
+                
+                // Create smooth interpolated points along the wave front
+                for (let i = 0; i < sortedData.length; i++) {
+                    const point = sortedData[i];
+                    const smoothIntensity = point.intensity * (1 - Math.pow(point.distance / propagationData.maxDistance, 0.5));
+                    
+                    if (smoothIntensity > 0.01) {
+                        smoothWaveData.push({
+                            ...point,
+                            smoothIntensity: smoothIntensity,
+                            wavePhase: (currentTime * 2 - point.distance * 0.5) % (Math.PI * 2)
+                        });
+                    }
+                }
+            }
+            
+            // Main smooth wave layer
+            if (smoothWaveData.length > 0) {
+                layers.push(new deck.ScatterplotLayer({
+                    id: 'smooth-wave',
+                    data: smoothWaveData,
+                    getPosition: d => [d.longitude, d.latitude],
+                    getRadius: d => {
+                        // Smooth size transition based on intensity
+                        const baseSize = 80 + (d.smoothIntensity * 300);
+                        const waveModulation = 1 + (0.15 * Math.sin(d.wavePhase));
+                        return baseSize * waveModulation;
+                    },
+                    getFillColor: d => {
+                        // Smooth color gradient from blue to red
+                        const intensity = d.smoothIntensity;
+                        const waveAlpha = 0.6 + (0.3 * Math.sin(d.wavePhase));
+                        
+                        if (intensity > 0.7) {
+                            // High intensity: red-orange
+                            return [255, Math.floor(100 + 155 * intensity), 0, Math.floor(255 * waveAlpha)];
+                        } else if (intensity > 0.4) {
+                            // Medium intensity: yellow-orange
+                            return [255, Math.floor(200 + 55 * intensity), Math.floor(50 * intensity), Math.floor(255 * waveAlpha)];
+                        } else {
+                            // Low intensity: blue-cyan
+                            return [Math.floor(100 * intensity), Math.floor(150 + 105 * intensity), 255, Math.floor(255 * waveAlpha)];
+                        }
+                    },
+                    radiusMinPixels: 4,
+                    radiusMaxPixels: 80,
+                    pickable: true,
+                    updateTriggers: {
+                        getRadius: currentTime,
+                        getFillColor: currentTime
+                    }
+                }));
+            }
+            
+            // Smooth expanding wave rings from center
+            const waveRings = [];
+            for (let ring = 0; ring < 3; ring++) {
+                const ringDelay = ring * 2.5;
+                const ringTime = currentTime - ringDelay;
+                
+                if (ringTime > 0 && ringTime < 8) {
+                    const progress = ringTime / 8;
+                    const radius = progress * propagationData.maxDistance * 111000 * 0.8;
+                    const opacity = Math.sin(progress * Math.PI) * 0.4; // Smooth fade in/out
+                    
+                    waveRings.push({
+                        longitude: center.longitude,
+                        latitude: center.latitude,
+                        radius: radius,
+                        opacity: opacity,
+                        ring: ring
+                    });
+                }
+            }
+            
+            // Smooth wave rings
+            if (waveRings.length > 0) {
+                layers.push(new deck.ScatterplotLayer({
+                    id: 'wave-rings',
+                    data: waveRings,
+                    getPosition: d => [d.longitude, d.latitude],
+                    getRadius: d => d.radius,
+                    getFillColor: d => [80, 160, 255, Math.floor(d.opacity * 255)],
+                    stroked: true,
+                    getLineColor: d => [120, 200, 255, Math.floor(d.opacity * 200)],
+                    getLineWidth: 1,
+                    radiusUnits: 'meters',
+                    radiusScale: 1,
+                    pickable: false
+                }));
+            }
+            
+            // Smooth pulsing center point
+            const centerPulse = 1 + (0.2 * Math.sin(currentTime * 3));
+            layers.push(new deck.ScatterplotLayer({
+                id: 'sound-source',
+                data: [center],
+                getPosition: d => [d.longitude, d.latitude],
+                getRadius: 200 * centerPulse,
+                getFillColor: [255, 220, 0, 180],
+                stroked: true,
+                getLineColor: [255, 180, 0, 220],
+                getLineWidth: 2,
+                radiusMinPixels: 12,
+                radiusMaxPixels: 25,
+                pickable: true,
+                updateTriggers: {
+                    getRadius: currentTime
+                }
+            }));
+
+            deckgl.setProps({ layers });
+            
+            // Update info panel
+            updateInfoPanel(frameData);
+        }
+
+        function updateInfoPanel(frameData = []) {
+            const currentTime = (currentFrame / (totalFrames - 1)) * 10; // 10 second animation
+            const maxIntensity = frameData.length > 0 ? Math.max(...frameData.map(d => d.intensity)) : 0;
+            const center = propagationData ? propagationData.center : null;
+            const sampleInfo = propagationData ? propagationData.sampleInfo : null;
+            
+            document.getElementById('current-time').textContent = `${currentTime.toFixed(2)}s`;
+            document.getElementById('active-points').textContent = frameData.length.toString();
+            document.getElementById('max-intensity').textContent = maxIntensity.toFixed(2);
+            
+            if (center) {
+                document.getElementById('center-coords').textContent = 
+                    `${center.latitude.toFixed(3)}, ${center.longitude.toFixed(3)}`;
+            }
+            
+            if (sampleInfo) {
+                document.getElementById('data-points').textContent = 
+                    `${sampleInfo.sampledPoints.toLocaleString()} / ${sampleInfo.originalPoints.toLocaleString()}`;
+            }
+            
+            // Update progress
+            const progress = (currentFrame / (totalFrames - 1)) * 100;
+            document.getElementById('progress-fill').style.width = `${progress}%`;
+            
+            // Update time display
+            const totalTime = 10.0; // Total animation time in seconds
+            document.getElementById('time-display').textContent = 
+                `${currentTime.toFixed(2)}s / ${totalTime.toFixed(2)}s`;
+        }
+
+        function playAnimation() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            document.getElementById('play-icon').style.display = 'none';
+            document.getElementById('pause-icon').style.display = 'block';
+            
+            function animate() {
+                if (!isPlaying) return;
+                
+                currentFrame++;
+                if (currentFrame >= totalFrames) {
+                    currentFrame = 0; // Loop animation
+                }
+                
+                document.getElementById('timeline-slider').value = currentFrame;
+                updateVisualization();
+                
+                animationId = setTimeout(animate, animationSpeed);
+            }
+            
+            animate();
+        }
+
+        function pauseAnimation() {
+            isPlaying = false;
+            document.getElementById('play-icon').style.display = 'block';
+            document.getElementById('pause-icon').style.display = 'none';
+            
+            if (animationId) {
+                clearTimeout(animationId);
+                animationId = null;
+            }
+        }
+
+        function resetAnimation() {
+            pauseAnimation();
+            currentFrame = 0;
+            document.getElementById('timeline-slider').value = 0;
+            updateVisualization();
+        }
+
+        // Event listeners
+        document.getElementById('play-pause-btn').addEventListener('click', () => {
+            if (isPlaying) {
+                pauseAnimation();
+            } else {
+                playAnimation();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', resetAnimation);
+
+        document.getElementById('timeline-slider').addEventListener('input', (e) => {
+            pauseAnimation();
+            currentFrame = parseInt(e.target.value);
+            updateVisualization();
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    if (isPlaying) {
+                        pauseAnimation();
+                    } else {
+                        playAnimation();
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    pauseAnimation();
+                    currentFrame = Math.max(0, currentFrame - 1);
+                    document.getElementById('timeline-slider').value = currentFrame;
+                    updateVisualization();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    pauseAnimation();
+                    currentFrame = Math.min(totalFrames - 1, currentFrame + 1);
+                    document.getElementById('timeline-slider').value = currentFrame;
+                    updateVisualization();
+                    break;
+                case 'KeyR':
+                    e.preventDefault();
+                    resetAnimation();
+                    break;
+            }
+        });
+
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+
+</html> 
