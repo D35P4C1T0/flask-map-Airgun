@@ -412,6 +412,25 @@
             border-radius: 0.25rem;
             font-family: 'JetBrains Mono', monospace;
         }
+
+        /* CSV Selector Styles */
+        #csvSelector {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            appearance: none;
+        }
+
+        #csvSelector:focus {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        }
+
+        #csvSelector option {
+            background: #1e293b;
+            color: white;
+        }
     </style>
 </head>
 
@@ -449,6 +468,24 @@
 
     <!-- Main Controls Container -->
     <div class="controls-container custom-scrollbar">
+        <!-- CSV File Selector Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="section-title text-white">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Data Source
+            </div>
+            <div class="mb-3">
+                <label class="text-sm font-medium text-white mb-2 block">Select Dataset</label>
+                <select id="csvSelector" class="w-full px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200">
+                    <option value="">Loading datasets...</option>
+                </select>
+            </div>
+            <div id="currentDatasetInfo" class="value-card" style="display: none;">
+                <div class="value-card-header">Current Dataset</div>
+                <div id="currentDatasetName" class="value-card-content">-</div>
+            </div>
+        </div>
+
         <!-- Status Panel -->
         <div class="control-panel glass fade-in-up">
             <div class="section-title text-white">
@@ -588,7 +625,7 @@
                     <i data-lucide="camera" class="w-3 h-3 inline mr-1"></i>
                     Screenshot
                 </button>
-                <a href="/propagation" class="px-3 py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors text-center block col-span-2">
+                <a href="/heatmap/propagation" class="px-3 py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors text-center block col-span-2">
                     <i data-lucide="radio" class="w-3 h-3 inline mr-1"></i>
                     Sound Propagation
                 </a>
@@ -619,6 +656,10 @@
                 <div class="flex justify-between items-center">
                     <span>Export Data</span>
                     <kbd class="kbd">E</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Take Screenshot</span>
+                    <kbd class="kbd">S</kbd>
                 </div>
                 <div class="flex justify-between items-center">
                     <span>Help</span>
@@ -1058,9 +1099,73 @@
             });
         }
 
-        // Load data and create visualization
-        function loadData() {
-            fetch('/data')
+        // Global variables for CSV management
+        let availableCSVFiles = {};
+        let currentCSVKey = null;
+
+        // Load available CSV files list
+        function loadCSVFilesList() {
+            return fetch('/heatmap/csv-files')
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load CSV files list');
+                    return response.json();
+                })
+                .then(result => {
+                    availableCSVFiles = result.files;
+                    currentCSVKey = result.default;
+                    
+                    // Populate the dropdown
+                    const selector = document.getElementById('csvSelector');
+                    selector.innerHTML = '';
+                    
+                    Object.keys(availableCSVFiles).forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = key;
+                        if (key === currentCSVKey) {
+                            option.selected = true;
+                        }
+                        selector.appendChild(option);
+                    });
+                    
+                    // Update current dataset info
+                    updateCurrentDatasetInfo();
+                    
+                    console.log('CSV files loaded:', availableCSVFiles);
+                    return currentCSVKey;
+                })
+                .catch(error => {
+                    console.error('Error loading CSV files:', error);
+                    showNotification('Failed to load CSV files list', 'error');
+                    throw error;
+                });
+        }
+
+        // Update current dataset info display
+        function updateCurrentDatasetInfo() {
+            const infoDiv = document.getElementById('currentDatasetInfo');
+            const nameDiv = document.getElementById('currentDatasetName');
+            
+            if (currentCSVKey && availableCSVFiles[currentCSVKey]) {
+                nameDiv.textContent = currentCSVKey;
+                infoDiv.style.display = 'block';
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        }
+
+        // Load data for a specific CSV file
+        function loadData(csvKey = null) {
+            const keyToLoad = csvKey || currentCSVKey;
+            const url = keyToLoad ? `/heatmap/data/${encodeURIComponent(keyToLoad)}` : '/heatmap/data';
+            
+            // Show loading status
+            const dataStatus = document.getElementById('dataStatus');
+            dataStatus.className = 'status-indicator status-inactive';
+            dataStatus.innerHTML = '<i data-lucide="database" class="w-3 h-3"></i><span>Loading</span>';
+            lucide.createIcons();
+            
+            fetch(url)
                 .then(response => {
                     if (!response.ok) throw new Error('Failed to load data');
                     return response.json();
@@ -1069,8 +1174,11 @@
                     data = result.data;
                     valueRange = result.valueRange;
                     colorScale = result.colorScale;
+                    currentCSVKey = result.csvKey;
 
                     console.log('Data loaded:', {
+                        csvKey: result.csvKey,
+                        csvFile: result.csvFile,
                         dataLength: data.length,
                         valueRange,
                         colorScaleLength: colorScale.length
@@ -1079,9 +1187,13 @@
                     // Update UI
                     updateDataStatistics();
                     createLegend();
+                    updateCurrentDatasetInfo();
+                    
+                    // Update dropdown selection
+                    const selector = document.getElementById('csvSelector');
+                    selector.value = currentCSVKey;
                     
                     // Update status
-                    const dataStatus = document.getElementById('dataStatus');
                     dataStatus.className = 'status-indicator status-active';
                     dataStatus.innerHTML = '<i data-lucide="database" class="w-3 h-3"></i><span>Loaded</span>';
                     lucide.createIcons();
@@ -1107,32 +1219,149 @@
                     });
 
                     // Hide loading overlay
-                    setTimeout(() => {
-                        document.getElementById('loadingOverlay').style.opacity = '0';
+                    if (document.getElementById('loadingOverlay').style.display !== 'none') {
                         setTimeout(() => {
-                            document.getElementById('loadingOverlay').style.display = 'none';
-                        }, 300);
-                    }, 1000);
+                            document.getElementById('loadingOverlay').style.opacity = '0';
+                            setTimeout(() => {
+                                document.getElementById('loadingOverlay').style.display = 'none';
+                            }, 300);
+                        }, 1000);
+                    }
 
-                    showNotification('Data loaded successfully', 'success');
+                    showNotification(`Data loaded: ${currentCSVKey}`, 'success');
                 })
                 .catch(error => {
                     console.error('Error loading data:', error);
                     showNotification('Failed to load data', 'error');
+                    
+                    // Update status on error
+                    dataStatus.className = 'status-indicator status-inactive';
+                    dataStatus.innerHTML = '<i data-lucide="database" class="w-3 h-3"></i><span>Error</span>';
+                    lucide.createIcons();
                     
                     // Hide loading overlay on error
                     document.getElementById('loadingOverlay').style.display = 'none';
                 });
         }
 
+        // Handle CSV file selection change
+        function onCSVSelectionChange() {
+            const selector = document.getElementById('csvSelector');
+            const selectedKey = selector.value;
+            
+            if (selectedKey && selectedKey !== currentCSVKey) {
+                console.log('Loading new CSV:', selectedKey);
+                loadData(selectedKey);
+            }
+        }
+
+        // Screenshot functionality
+        function takeScreenshot() {
+            try {
+                // Get the deck.gl canvas - try multiple selectors
+                let deckCanvas = document.querySelector('#map canvas');
+                
+                // If not found, try alternative selectors
+                if (!deckCanvas) {
+                    deckCanvas = document.querySelector('canvas');
+                }
+                
+                if (!deckCanvas) {
+                    console.log('Available canvases:', document.querySelectorAll('canvas'));
+                    console.log('Map container:', document.getElementById('map'));
+                    console.log('Map container children:', document.getElementById('map').children);
+                    
+                    // Try waiting a bit for the canvas to be created
+                    setTimeout(() => {
+                        const retryCanvas = document.querySelector('#map canvas') || document.querySelector('canvas');
+                        if (retryCanvas) {
+                            console.log('Canvas found on retry, taking screenshot...');
+                            takeScreenshotWithCanvas(retryCanvas);
+                        } else {
+                            showNotification('Map canvas not found after retry', 'error');
+                        }
+                    }, 500);
+                    return;
+                }
+                
+                takeScreenshotWithCanvas(deckCanvas);
+            } catch (error) {
+                console.error('Screenshot error:', error);
+                showNotification('Failed to capture screenshot', 'error');
+            }
+        }
+        
+        // Helper function to take screenshot with a given canvas
+        function takeScreenshotWithCanvas(deckCanvas) {
+            try {
+                // Create a temporary canvas to combine all visual elements
+                const tempCanvas = document.createElement('canvas');
+                const ctx = tempCanvas.getContext('2d');
+                
+                // Set canvas size to match the map container
+                const mapContainer = document.getElementById('map');
+                tempCanvas.width = mapContainer.offsetWidth;
+                tempCanvas.height = mapContainer.offsetHeight;
+
+                // Fill background (in case of transparency)
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+                // Draw the deck.gl canvas
+                ctx.drawImage(deckCanvas, 0, 0);
+
+                // Add watermark/metadata
+                const addWatermark = () => {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(10, tempCanvas.height - 80, 300, 70);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.fillText('Noise Map Analysis', 20, tempCanvas.height - 55);
+                    
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#ccc';
+                    ctx.fillText(`Dataset: ${currentCSVKey || 'Unknown'}`, 20, tempCanvas.height - 35);
+                    ctx.fillText(`Generated: ${new Date().toLocaleString()}`, 20, tempCanvas.height - 15);
+                };
+
+                addWatermark();
+
+                // Convert to blob and download
+                tempCanvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    
+                    // Generate filename with timestamp and dataset name
+                    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+                    const datasetName = (currentCSVKey || 'heatmap').replace(/[^a-zA-Z0-9]/g, '_');
+                    link.download = `heatmap_${datasetName}_${timestamp}.png`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification('Screenshot saved successfully!', 'success');
+                }, 'image/png', 0.9);
+
+            } catch (error) {
+                console.error('Screenshot error:', error);
+                showNotification('Failed to capture screenshot', 'error');
+            }
+        }
+
         // Event Listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Control event listeners
+            document.getElementById('csvSelector').addEventListener('change', onCSVSelectionChange);
             document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
             document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
             document.getElementById('zoomToExtentBtn').addEventListener('click', zoomToExtent);
             document.getElementById('exportDataBtn').addEventListener('click', exportData);
             document.getElementById('toggleLegendBtn').addEventListener('click', toggleLegend);
+            document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
             
             // Help panel toggle
             const helpBtn = document.getElementById('helpBtn');
@@ -1169,6 +1398,10 @@
                         e.preventDefault();
                         exportData();
                         break;
+                    case 's':
+                        e.preventDefault();
+                        takeScreenshot();
+                        break;
                     case 'h':
                         e.preventDefault();
                         helpBtn.click();
@@ -1203,7 +1436,17 @@
 
             // Initialize the application
             initializeMap();
-            loadData();
+            
+            // Load CSV files list first, then load default data
+            loadCSVFilesList()
+                .then(() => {
+                    loadData();
+                })
+                .catch(error => {
+                    console.error('Failed to initialize CSV files:', error);
+                    // Fallback to loading data directly
+                    loadData();
+                });
 
             // Initialize slider values from config
             document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
