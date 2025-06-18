@@ -19,10 +19,6 @@ Compress(app)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.json.compact = True  # For Flask 2.2+
 
-# ===================================================================
-# FIXED: Multiple CSV Configuration with Nice Display Names
-# ===================================================================
-
 csv_files = {
     # Display Name : File Path
     'Primary Dataset': 'data/data.csv',
@@ -36,10 +32,6 @@ register_heatmap(app,
     URL_PREFIX='/heatmap',          # Heatmap will be at /heatmap/
     BLUEPRINT_NAME='multi_csv_heatmap'
 )
-
-# ===================================================================
-# Your Main App Routes (NOT conflicting with blueprint)
-# ===================================================================
 
 @app.route('/')
 def index():

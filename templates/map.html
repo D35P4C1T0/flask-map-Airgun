@@ -104,6 +104,15 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            /* Ensure it can scroll when content overflows */
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+            overflow-x: hidden;
+            /* Match panel rounded corners */
+            border-radius: 16px;
+            /* Add subtle background to unify the panels */
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.5rem;
         }
 
         .control-panel {
@@ -363,7 +372,7 @@
         }
 
         /* Responsive Design */
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .controls-container {
                 position: fixed;
                 bottom: 1rem;
@@ -371,12 +380,84 @@
                 left: 1rem;
                 top: auto;
                 width: auto;
-                max-height: 60vh;
+                max-height: 70vh;
                 overflow-y: auto;
+                overflow-x: hidden;
+                padding-bottom: 1rem;
+                /* Ensure smooth scrolling */
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
             }
 
             .control-panel {
                 padding: 1rem;
+                margin-bottom: 0.5rem;
+            }
+
+            /* Hide the help button on small screens to avoid overlap */
+            .fixed.bottom-4.left-4 {
+                display: none;
+            }
+
+            /* Reposition legend on mobile to avoid overlap with repositioned controls */
+            #legend {
+                right: 1rem !important;
+                left: auto !important;
+            }
+        }
+
+        /* Add styles for very small screens */
+        @media (max-width: 480px) {
+            .controls-container {
+                max-height: 75vh;
+                bottom: 0.5rem;
+                left: 0.5rem;
+                right: 0.5rem;
+            }
+
+            .control-panel {
+                padding: 0.75rem;
+            }
+
+            .section-title {
+                font-size: 0.8rem;
+            }
+
+            .value-card {
+                padding: 0.75rem;
+            }
+        }
+
+        /* Auto-scroll indicator styles for desktop */
+        @media (min-width: 768px) {
+            .controls-container::before,
+            .controls-container::after {
+                content: '';
+                position: absolute;
+                left: 0.5rem;
+                right: 0.5rem;
+                height: 80px;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                border-radius: 12px;
+            }
+
+            /* Top scroll zone indicator */
+            .controls-container::before {
+                top: 0.5rem;
+                background: linear-gradient(rgba(59, 130, 246, 0.05), transparent);
+            }
+
+            /* Bottom scroll zone indicator */
+            .controls-container::after {
+                bottom: 0.5rem;
+                background: linear-gradient(transparent, rgba(59, 130, 246, 0.05));
+            }
+
+            .controls-container:hover::before,
+            .controls-container:hover::after {
+                opacity: 1;
             }
         }
 
@@ -397,6 +478,30 @@
 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Enhanced scrollbar for mobile */
+        @media (max-width: 767px) {
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(59, 130, 246, 0.7);
+            }
+
+            /* Add a subtle gradient at the bottom to indicate scrollable content */
+            .controls-container::after {
+                content: '';
+                position: sticky;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 20px;
+                background: linear-gradient(transparent, rgba(17, 25, 40, 0.8));
+                pointer-events: none;
+                z-index: 10;
+            }
         }
 
         /* Keyboard shortcuts display */
@@ -457,7 +562,7 @@
     </div>
 
     <!-- Legend -->
-    <div id="legend" class="legend fixed bottom-4 left-4 fade-in-up w-80" style="display: none">
+    <div id="legend" class="legend fixed bottom-4 fade-in-up w-80" style="display: none; right: calc(20rem + 2rem);">
         <div class="flex items-center gap-2 mb-2">
             <i data-lucide="palette" class="w-4 h-4 text-blue-600"></i>
             <span class="font-semibold text-sm text-gray-700">Value Scale</span>
@@ -634,11 +739,11 @@
     </div>
 
     <!-- Help Panel -->
-    <div class="fixed bottom-4 right-4 z-[1000]">
+    <div class="fixed bottom-4 left-4 z-[1000]">
         <button id="helpBtn" class="glass-dark rounded-full p-3 text-white hover:bg-white hover:bg-opacity-20 transition-all duration-300 group">
             <i data-lucide="help-circle" class="w-5 h-5"></i>
         </button>
-        <div id="helpPanel" class="absolute bottom-16 right-0 w-80 glass-dark rounded-lg p-4 text-white text-sm opacity-0 invisible transition-all duration-300 transform translate-y-2">
+        <div id="helpPanel" class="absolute bottom-16 left-0 w-80 glass-dark rounded-lg p-4 text-white text-sm opacity-0 invisible transition-all duration-300 transform translate-y-2">
             <h4 class="font-bold text-base mb-3 text-blue-300">Keyboard Shortcuts</h4>
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
@@ -1457,8 +1562,154 @@
             document.getElementById('intensitySlider').value = heatmapConfig.intensity;
             document.getElementById('thresholdValue').textContent = heatmapConfig.threshold.toFixed(2);
             document.getElementById('thresholdSlider').value = heatmapConfig.threshold;
+
+            // Auto-scroll functionality for controls container
+            setupAutoScroll();
         });
+
+        // Auto-scroll setup function
+        function setupAutoScroll() {
+            console.log('Setting up auto-scroll...');
+            const controlsContainer = document.querySelector('.controls-container');
+            
+            if (!controlsContainer) {
+                console.error('Controls container not found!');
+                return;
+            }
+            
+            console.log('Controls container found:', controlsContainer);
+
+            let autoScrollInterval = null;
+            let isAutoScrolling = false;
+            let scrollDirection = 0; // -1 for up, 1 for down, 0 for stop
+            
+            // Auto-scroll parameters
+            const SCROLL_ZONE_HEIGHT = 80; // Trigger zone height
+            const SCROLL_SPEED = 5; // Faster scroll speed
+
+            function startAutoScroll(direction) {
+                if (isAutoScrolling && scrollDirection === direction) return;
+                
+                // Stop existing scroll if direction changed
+                if (isAutoScrolling && scrollDirection !== direction) {
+                    stopAutoScroll();
+                }
+                
+                console.log('Starting auto-scroll', direction > 0 ? 'down' : 'up');
+                scrollDirection = direction;
+                isAutoScrolling = true;
+                
+                autoScrollInterval = setInterval(() => {
+                    const beforeScroll = controlsContainer.scrollTop;
+                    const maxScroll = controlsContainer.scrollHeight - controlsContainer.clientHeight;
+                    
+                    // Check bounds based on direction
+                    if (direction > 0 && beforeScroll >= maxScroll) {
+                        console.log('Reached bottom, stopping auto-scroll');
+                        stopAutoScroll();
+                        return;
+                    }
+                    
+                    if (direction < 0 && beforeScroll <= 0) {
+                        console.log('Reached top, stopping auto-scroll');
+                        stopAutoScroll();
+                        return;
+                    }
+                    
+                    // Apply scroll
+                    controlsContainer.scrollTop += SCROLL_SPEED * direction;
+                    const afterScroll = controlsContainer.scrollTop;
+                    
+                    // If scroll didn't happen, stop
+                    if (afterScroll === beforeScroll) {
+                        console.warn('Scroll failed - reached boundary');
+                        stopAutoScroll();
+                    }
+                }, 16); // ~60fps
+            }
+
+            function stopAutoScroll() {
+                if (!isAutoScrolling) return;
+                
+                console.log('Stopping auto-scroll');
+                isAutoScrolling = false;
+                scrollDirection = 0;
+                
+                if (autoScrollInterval) {
+                    clearInterval(autoScrollInterval);
+                    autoScrollInterval = null;
+                }
+            }
+
+            // Mouse move handler for auto-scroll
+            controlsContainer.addEventListener('mousemove', (e) => {
+                // Only work on screens wider than 767px
+                if (window.innerWidth <= 767) return;
+                
+                const rect = controlsContainer.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                const containerHeight = rect.height;
+                
+                // Check scroll zones
+                const isInTopZone = relativeY < SCROLL_ZONE_HEIGHT;
+                const isInBottomZone = relativeY > (containerHeight - SCROLL_ZONE_HEIGHT);
+                
+                // Check scroll boundaries
+                const canScrollUp = controlsContainer.scrollTop > 0;
+                const canScrollDown = controlsContainer.scrollTop < 
+                    controlsContainer.scrollHeight - controlsContainer.clientHeight;
+                
+                if (isInTopZone && canScrollUp) {
+                    if (!isAutoScrolling || scrollDirection !== -1) {
+                        console.log('Mouse in top zone, starting auto-scroll up');
+                        startAutoScroll(-1); // Scroll up
+                    }
+                } else if (isInBottomZone && canScrollDown) {
+                    if (!isAutoScrolling || scrollDirection !== 1) {
+                        console.log('Mouse in bottom zone, starting auto-scroll down');
+                        startAutoScroll(1); // Scroll down
+                    }
+                } else {
+                    if (isAutoScrolling) {
+                        console.log('Mouse left scroll zones, stopping auto-scroll');
+                        stopAutoScroll();
+                    }
+                }
+            });
+
+            // Stop auto-scroll when mouse leaves container
+            controlsContainer.addEventListener('mouseleave', () => {
+                console.log('Mouse left container');
+                stopAutoScroll();
+            });
+
+            // Stop auto-scroll on manual scroll
+            controlsContainer.addEventListener('wheel', (e) => {
+                console.log('Manual scroll detected');
+                stopAutoScroll();
+            });
+
+            // Stop auto-scroll on touch
+            controlsContainer.addEventListener('touchstart', () => {
+                console.log('Touch detected');
+                stopAutoScroll();
+            });
+
+            console.log('Auto-scroll setup complete');
+            
+            // Add a test function to manually test scrolling
+            window.testScroll = function() {
+                console.log('Testing manual scroll...');
+                console.log('Before:', controlsContainer.scrollTop);
+                controlsContainer.scrollTop += 50;
+                console.log('After:', controlsContainer.scrollTop);
+                console.log('Scrollable height:', controlsContainer.scrollHeight - controlsContainer.clientHeight);
+            };
+        }
+
+
     </script>
 </body>
 
+</html>
 </html>

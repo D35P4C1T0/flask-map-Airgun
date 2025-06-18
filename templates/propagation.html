@@ -253,6 +253,73 @@
             background: #1e293b;
             color: white;
         }
+
+        /* Responsive Design for Small Screens */
+        @media (max-width: 767px) {
+            .info-container {
+                position: fixed;
+                bottom: 1rem;
+                left: 1rem;
+                right: 1rem;
+                top: auto;
+                width: auto;
+                max-height: 50vh;
+                overflow-y: auto;
+                overflow-x: hidden;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                /* Ensure smooth scrolling */
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
+            }
+
+            .info-panel {
+                padding: 1rem;
+                margin-bottom: 0;
+            }
+
+            .nav-container {
+                top: 1rem;
+                right: 1rem;
+                left: auto;
+            }
+
+            .nav-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.875rem;
+            }
+
+            .timeline-container {
+                bottom: calc(50vh + 2rem);
+                left: 1rem;
+                right: 1rem;
+                width: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .info-container {
+                max-height: 40vh;
+                bottom: 0.5rem;
+                left: 0.5rem;
+                right: 0.5rem;
+            }
+
+            .info-panel {
+                padding: 0.75rem;
+            }
+
+            .info-title {
+                font-size: 0.9rem;
+            }
+
+            .timeline-container {
+                bottom: calc(40vh + 1.5rem);
+                left: 0.5rem;
+                right: 0.5rem;
+            }
+        }
     </style>
 </head>
 
@@ -882,8 +949,86 @@
             }
         });
 
+        // Auto-scroll setup function
+        function setupAutoScroll() {
+            const infoContainer = document.querySelector('.info-container');
+            if (!infoContainer) return;
+
+            let autoScrollInterval = null;
+            let scrollSpeed = 0;
+            
+            // Auto-scroll parameters
+            const SCROLL_ZONE_HEIGHT = 60; // Height of the trigger zone at bottom
+            const MAX_SCROLL_SPEED = 2; // Maximum scroll speed
+            const SCROLL_ACCELERATION = 0.1; // How quickly to accelerate
+
+            function startAutoScroll(speed) {
+                if (autoScrollInterval) return; // Already scrolling
+                
+                autoScrollInterval = setInterval(() => {
+                    infoContainer.scrollTop += speed;
+                    
+                    // Stop if we've reached the bottom
+                    if (infoContainer.scrollTop >= 
+                        infoContainer.scrollHeight - infoContainer.clientHeight) {
+                        stopAutoScroll();
+                    }
+                }, 16); // ~60fps
+            }
+
+            function stopAutoScroll() {
+                if (autoScrollInterval) {
+                    clearInterval(autoScrollInterval);
+                    autoScrollInterval = null;
+                }
+                scrollSpeed = 0;
+            }
+
+            // Mouse move handler for auto-scroll
+            infoContainer.addEventListener('mousemove', (e) => {
+                const rect = infoContainer.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                const containerHeight = rect.height;
+                
+                // Check if mouse is in the bottom scroll zone
+                const isInScrollZone = relativeY > (containerHeight - SCROLL_ZONE_HEIGHT);
+                
+                if (isInScrollZone && 
+                    infoContainer.scrollTop < 
+                    infoContainer.scrollHeight - infoContainer.clientHeight) {
+                    
+                    // Calculate scroll speed based on how close to bottom edge
+                    const distanceFromBottom = containerHeight - relativeY;
+                    const speedRatio = Math.max(0, (SCROLL_ZONE_HEIGHT - distanceFromBottom) / SCROLL_ZONE_HEIGHT);
+                    const targetSpeed = speedRatio * MAX_SCROLL_SPEED;
+                    
+                    // Smooth acceleration
+                    scrollSpeed = Math.min(targetSpeed, scrollSpeed + SCROLL_ACCELERATION);
+                    
+                    startAutoScroll(scrollSpeed);
+                } else {
+                    stopAutoScroll();
+                }
+            });
+
+            // Stop auto-scroll when mouse leaves container
+            infoContainer.addEventListener('mouseleave', () => {
+                stopAutoScroll();
+            });
+
+            // Stop auto-scroll on manual scroll
+            infoContainer.addEventListener('wheel', (e) => {
+                stopAutoScroll();
+            });
+        }
+
         // Initialize when page loads
         init();
+        
+        // Set up auto-scroll after initialization
+        setTimeout(() => {
+            setupAutoScroll();
+        }, 500);
     </script>
 </body>
 
