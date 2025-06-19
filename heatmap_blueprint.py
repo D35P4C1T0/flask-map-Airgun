@@ -5,32 +5,133 @@ import numpy as np
 from flask import Blueprint, jsonify, send_from_directory, render_template, request, current_app
 from flask_compress import Compress
 
+# Import the global configuration system
+try:
+    from config import AppConfig
+    GLOBAL_CONFIG_AVAILABLE = True
+except ImportError:
+    GLOBAL_CONFIG_AVAILABLE = False
+    # Fallback defaults if config.py is not available
+    class AppConfig:
+        INPUT_CSV_FILE = 'data/data.csv'
+        STATIC_FOLDER = 'static'
+        TEMPLATE_FOLDER = 'templates'
+        REQUIRED_COLUMNS = ['Latitude', 'Longitude', 'Value']
+        DEFAULT_MAP_OPACITY = 0.75
+        INITIAL_HEATMAP_RADIUS = 40
+        INITIAL_HEATMAP_INTENSITY = 1.5
+        INITIAL_HEATMAP_THRESHOLD = 0.00
+
 class HeatmapConfig:
-    """Configuration class for the heatmap blueprint"""
+    """
+    Unified configuration class for the heatmap blueprint.
+    
+    Priority order:
+    1. Runtime parameters (**kwargs) - highest priority
+    2. Global config.json/AppConfig - fallback defaults
+    3. Hardcoded defaults - lowest priority
+    
+    This allows for:
+    - Global configuration via config.json
+    - Per-instance overrides via register_heatmap() parameters
+    - Multiple blueprint instances with different configs
+    """
     def __init__(self, **kwargs):
+        # Load global configuration defaults first
+        global_defaults = self._load_global_defaults()
+        
         # CSV file configuration - supports both single file and multiple files
-        self.INPUT_CSV_FILE = kwargs.get('INPUT_CSV_FILE', 'data/data.csv')  # Backward compatibility
+        self.INPUT_CSV_FILE = kwargs.get('INPUT_CSV_FILE', global_defaults.get('INPUT_CSV_FILE', 'data/data.csv'))
         self.CSV_FILES = kwargs.get('CSV_FILES', None)  # New: dict of {name: filepath} or list of filepaths
         self.DEFAULT_CSV = kwargs.get('DEFAULT_CSV', None)  # Which CSV to show by default
         
         # Folder configuration
-        self.STATIC_FOLDER = kwargs.get('STATIC_FOLDER', 'static')
-        self.TEMPLATE_FOLDER = kwargs.get('TEMPLATE_FOLDER', 'templates')
+        self.STATIC_FOLDER = kwargs.get('STATIC_FOLDER', global_defaults.get('STATIC_FOLDER', 'static'))
+        self.TEMPLATE_FOLDER = kwargs.get('TEMPLATE_FOLDER', global_defaults.get('TEMPLATE_FOLDER', 'templates'))
         self.COLORS_DIR = kwargs.get('COLORS_DIR', 'colors')
         
         # Data configuration
-        self.REQUIRED_COLUMNS = kwargs.get('REQUIRED_COLUMNS', ['Latitude', 'Longitude', 'Value'])
-        self.DEFAULT_MAP_OPACITY = kwargs.get('DEFAULT_MAP_OPACITY', 0.75)
-        self.INITIAL_HEATMAP_RADIUS = kwargs.get('INITIAL_HEATMAP_RADIUS', 40)
-        self.INITIAL_HEATMAP_INTENSITY = kwargs.get('INITIAL_HEATMAP_INTENSITY', 1.5)
-        self.INITIAL_HEATMAP_THRESHOLD = kwargs.get('INITIAL_HEATMAP_THRESHOLD', 0.00)
+        self.REQUIRED_COLUMNS = kwargs.get('REQUIRED_COLUMNS', global_defaults.get('REQUIRED_COLUMNS', ['Latitude', 'Longitude', 'Value']))
+        self.DEFAULT_MAP_OPACITY = kwargs.get('DEFAULT_MAP_OPACITY', global_defaults.get('DEFAULT_MAP_OPACITY', 0.75))
+        self.INITIAL_HEATMAP_RADIUS = kwargs.get('INITIAL_HEATMAP_RADIUS', global_defaults.get('INITIAL_HEATMAP_RADIUS', 40))
+        self.INITIAL_HEATMAP_INTENSITY = kwargs.get('INITIAL_HEATMAP_INTENSITY', global_defaults.get('INITIAL_HEATMAP_INTENSITY', 1.5))
+        self.INITIAL_HEATMAP_THRESHOLD = kwargs.get('INITIAL_HEATMAP_THRESHOLD', global_defaults.get('INITIAL_HEATMAP_THRESHOLD', 0.00))
         
-        # Blueprint configuration
+        # Blueprint configuration (these are blueprint-specific, no global defaults)
         self.URL_PREFIX = kwargs.get('URL_PREFIX', '/heatmap')
         self.BLUEPRINT_NAME = kwargs.get('BLUEPRINT_NAME', 'heatmap')
         
         # Process CSV files configuration
         self._process_csv_files()
+        
+        # Store configuration source info for debugging
+        self._config_sources = {
+            'global_config_available': GLOBAL_CONFIG_AVAILABLE,
+            'runtime_overrides': list(kwargs.keys()) if kwargs else [],
+            'using_global_defaults': bool(global_defaults)
+        }
+    
+    def _load_global_defaults(self):
+        """
+        Load configuration defaults from the global AppConfig system.
+        
+        Returns:
+            dict: Dictionary of default values from global config
+        """
+        defaults = {}
+        
+        if GLOBAL_CONFIG_AVAILABLE:
+            try:
+                # Extract relevant configuration from AppConfig
+                config_attrs = [
+                    'INPUT_CSV_FILE', 'STATIC_FOLDER', 'FRONTEND_TEMPLATE', 
+                    'REQUIRED_COLUMNS', 'DEFAULT_MAP_OPACITY', 
+                    'INITIAL_HEATMAP_RADIUS', 'INITIAL_HEATMAP_INTENSITY', 
+                    'INITIAL_HEATMAP_THRESHOLD'
+                ]
+                
+                for attr in config_attrs:
+                    if hasattr(AppConfig, attr):
+                        defaults[attr] = getattr(AppConfig, attr)
+                
+                # Map FRONTEND_TEMPLATE to TEMPLATE_FOLDER for compatibility
+                if 'FRONTEND_TEMPLATE' in defaults:
+                    defaults['TEMPLATE_FOLDER'] = 'templates'
+                
+                print(f"✓ Loaded global configuration defaults: {list(defaults.keys())}")
+                
+            except Exception as e:
+                print(f"⚠ Warning: Error loading global config: {e}")
+        else:
+            print("ℹ Global config (config.py) not available, using hardcoded defaults")
+        
+        return defaults
+    
+    def get_config_info(self):
+        """
+        Get information about how this configuration was loaded.
+        Useful for debugging and understanding configuration precedence.
+        
+        Returns:
+            dict: Configuration loading information
+        """
+        return {
+            'sources': self._config_sources,
+            'current_values': {
+                'INPUT_CSV_FILE': self.INPUT_CSV_FILE,
+                'STATIC_FOLDER': self.STATIC_FOLDER,
+                'TEMPLATE_FOLDER': self.TEMPLATE_FOLDER,
+                'REQUIRED_COLUMNS': self.REQUIRED_COLUMNS,
+                'DEFAULT_MAP_OPACITY': self.DEFAULT_MAP_OPACITY,
+                'INITIAL_HEATMAP_RADIUS': self.INITIAL_HEATMAP_RADIUS,
+                'INITIAL_HEATMAP_INTENSITY': self.INITIAL_HEATMAP_INTENSITY,
+                'INITIAL_HEATMAP_THRESHOLD': self.INITIAL_HEATMAP_THRESHOLD,
+                'URL_PREFIX': self.URL_PREFIX,
+                'BLUEPRINT_NAME': self.BLUEPRINT_NAME,
+                'CSV_FILES': self.csv_files_dict,
+                'DEFAULT_CSV': self.default_csv_key
+            }
+        }
     
     def _process_csv_files(self):
         """Process and normalize CSV files configuration"""
@@ -130,6 +231,16 @@ def create_heatmap_blueprint(config=None):
             })
         except Exception as e:
             print(f"Error in get_csv_files: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @bp.route('/config-info')
+    def get_config_info():
+        """Get configuration information and sources (for debugging)"""
+        try:
+            config_info = config.get_config_info()
+            return jsonify(config_info)
+        except Exception as e:
+            print(f"Error in get_config_info: {e}")
             return jsonify({'error': str(e)}), 500
 
     @bp.route('/data')

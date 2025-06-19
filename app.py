@@ -1,12 +1,6 @@
-import os
-import json
-import pandas as pd
-import numpy as np
-from flask import Flask, jsonify, send_from_directory, render_template, request
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_compress import Compress
-from utils.color_utils import load_colors
-from config import AppConfig
 from heatmap_blueprint import register_heatmap
 
 app = Flask(__name__)

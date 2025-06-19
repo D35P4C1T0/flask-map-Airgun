@@ -54,11 +54,19 @@ A modern Flask-based web application that creates interactive, real-time heatmap
 
 ## Configuration
 
-The application uses a flexible configuration system with `config.json` for user settings and `config.py` for defaults.
+The application uses a **unified configuration system** that combines:
+1. **Global defaults** from `config.json` (managed by `AppConfig`)
+2. **Runtime overrides** via Blueprint parameters  
+3. **Hardcoded fallbacks** for maximum reliability
 
-### Key Configuration Options
+### Configuration Priority (highest to lowest):
+1. 🥇 **Runtime parameters** in `register_heatmap()`
+2. 🥈 **Global config.json** defaults
+3. 🥉 **Hardcoded defaults** (failsafe)
 
-Edit `config.json` to customize the application (create this file if it doesn't exist):
+### Global Configuration
+
+Edit `config.json` to set global defaults for all heatmap instances:
 
 ```json
 {
@@ -73,14 +81,38 @@ Edit `config.json` to customize the application (create this file if it doesn't 
 }
 ```
 
+### Runtime Configuration (Highest Priority)
+
+Override global defaults for specific heatmap instances:
+
+```python
+from heatmap_blueprint import register_heatmap
+
+# Override specific settings for this instance
+register_heatmap(app,
+    CSV_FILES={
+        'Survey A': 'data/survey_a.csv',
+        'Survey B': 'data/survey_b.csv'
+    },
+    INITIAL_HEATMAP_RADIUS=60,      # Override global default
+    INITIAL_HEATMAP_INTENSITY=2.0,  # Override global default
+    url_prefix='/custom-heatmap',
+    blueprint_name='custom_heatmap'
+)
+```
+
 ### Configuration Parameters
 
 - **INPUT_CSV_FILE**: Path to your CSV data file
+- **CSV_FILES**: Multiple datasets (dict or list format)
+- **DEFAULT_CSV**: Which dataset to show by default
 - **DEFAULT_MAP_OPACITY**: Initial opacity for the heatmap layer (0.0-1.0)
 - **INITIAL_HEATMAP_RADIUS**: Default radius for heatmap points
 - **INITIAL_HEATMAP_INTENSITY**: Default intensity multiplier
 - **INITIAL_HEATMAP_THRESHOLD**: Minimum value threshold for display
 - **REQUIRED_COLUMNS**: Expected column names in the CSV file
+- **URL_PREFIX**: Blueprint URL prefix (runtime only)
+- **BLUEPRINT_NAME**: Internal blueprint name (runtime only)
 
 ## Data Format
 
