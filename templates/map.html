@@ -661,6 +661,21 @@
             </div>
         </div>
 
+        <!-- Mode Toggle Panel -->
+        <div class="control-panel glass fade-in-up">
+            <div class="section-title text-white">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                Visualization Mode
+            </div>
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-white">Sound Propagation</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="propagationModeToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
         <!-- Visualization Controls Panel -->
         <div class="control-panel glass fade-in-up">
             <div class="collapsible-header" onclick="toggleSection('visualizationSection')">
@@ -708,6 +723,88 @@
             </div>
         </div>
 
+        <!-- Propagation Controls Panel -->
+        <div id="propagationControlsPanel" class="control-panel glass fade-in-up" style="display: none;">
+            <div class="section-title text-white">
+                <i data-lucide="radio" class="w-4 h-4"></i>
+                Propagation Settings
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                        <span>Animation Speed</span>
+                        <span id="animationSpeedValue" class="text-blue-100 font-semibold">1.0x</span>
+                    </label>
+                    <input type="range" id="animationSpeedSlider" min="0.1" max="30.0" value="1.0" step="0.1" class="w-full" />
+                </div>
+                <div>
+                    <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                        <span>Ring Width</span>
+                        <span id="ringWidthValue" class="text-blue-100 font-semibold">10.0 s</span>
+                    </label>
+                    <input type="range" id="ringWidthSlider" min="1.0" max="3000.0" value="10.0" step="1.0" class="w-full" />
+                </div>
+                <div>
+                    <label class="flex items-center justify-between text-sm font-medium text-white mb-2">
+                        <span>Max Time</span>
+                        <span id="maxTimeValue" class="text-blue-100 font-semibold">300.0 s</span>
+                    </label>
+                    <input type="range" id="maxTimeSlider" min="30" max="1000" value="300" step="10" class="w-full" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Propagation Info Panel -->
+        <div id="propagationInfoPanel" class="control-panel glass fade-in-up" style="display: none;">
+            <div class="section-title text-white">
+                <i data-lucide="info" class="w-4 h-4"></i>
+                Propagation Status
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="value-card">
+                    <div class="value-card-header">Current Time</div>
+                    <div id="currentTimeValue" class="value-card-content">0.00s</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-card-header">Outer Radius</div>
+                    <div id="outerRadiusValue" class="value-card-content">0 m</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-card-header">Inner Radius</div>
+                    <div id="innerRadiusValue" class="value-card-content">0 m</div>
+                </div>
+                <div class="value-card">
+                    <div class="value-card-header">Center</div>
+                    <div id="centerCoordsValue" class="value-card-content">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Propagation Timeline Controls -->
+        <div id="propagationTimelinePanel" class="control-panel glass fade-in-up" style="display: none;">
+            <div class="section-title text-white">
+                <i data-lucide="play" class="w-4 h-4"></i>
+                Timeline Controls
+            </div>
+            <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                    <button id="playPauseBtn" class="px-3 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
+                        <i data-lucide="play" id="playIcon" class="w-3 h-3 inline"></i>
+                        <i data-lucide="pause" id="pauseIcon" class="w-3 h-3 inline" style="display: none;"></i>
+                    </button>
+                    <button id="resetBtn" class="px-3 py-2 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i>
+                    </button>
+                    <div class="flex-1 text-white text-xs text-center">
+                        <span id="timeDisplay">0.00s / 300.00s</span>
+                    </div>
+                </div>
+                <div>
+                    <input type="range" id="timelineSlider" min="0" max="100" value="0" step="1" class="w-full" />
+                </div>
+            </div>
+        </div>
+
         <!-- Tools Panel -->
         <div class="control-panel glass fade-in-up">
             <div class="section-title text-white">
@@ -731,10 +828,6 @@
                     <i data-lucide="camera" class="w-3 h-3 inline mr-1"></i>
                     Screenshot
                 </button>
-                <a href="/heatmap/propagation" class="px-3 py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors text-center block col-span-2">
-                    <i data-lucide="radio" class="w-3 h-3 inline mr-1"></i>
-                    Sound Propagation
-                </a>
             </div>
         </div>
     </div>
@@ -770,6 +863,23 @@
                 <div class="flex justify-between items-center">
                     <span>Help</span>
                     <kbd class="kbd">H</kbd>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-white border-opacity-20" id="propagationShortcuts" style="display: none;">
+                <h5 class="font-semibold mb-2 text-blue-300">Propagation Mode</h5>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                        <span>Play/Pause</span>
+                        <kbd class="kbd">Space</kbd>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Step Left/Right</span>
+                        <kbd class="kbd">←/→</kbd>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Reset</span>
+                        <kbd class="kbd">R</kbd>
+                    </div>
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-white border-opacity-20">
@@ -816,6 +926,20 @@
             intensity: appConfig.initialHeatmapIntensity,
             threshold: appConfig.initialHeatmapThreshold
         };
+
+        // Propagation mode variables
+        let propagationMode = false;
+        let currentTime = 0;
+        let isPlaying = false;
+        let animationId = null;
+        let maxTime = 300; // seconds
+        let animationSpeed = 100; // ms per frame
+        let center = null;
+        
+        // Propagation settings
+        const soundSpeed = 1481; // m/s in water (fixed, physically accurate)
+        let ringWidth = 10.0; // seconds
+        let animationSpeedMultiplier = 1.0; // Speed multiplier for animation playback
 
         // OpenStreetMap tile layer configuration
         const OSM_TILE_LAYER = {
@@ -873,6 +997,75 @@
             }, 3000);
         }
 
+        // Propagation helper functions
+        function precomputeDistances() {
+            if (!data || !center) return;
+            
+            data.forEach(point => {
+                const lat1 = center.latitude * Math.PI / 180;
+                const lat2 = point.Latitude * Math.PI / 180;
+                const deltaLat = (point.Latitude - center.latitude) * Math.PI / 180;
+                const deltaLon = (point.Longitude - center.longitude) * Math.PI / 180;
+                
+                const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                        Math.cos(lat1) * Math.cos(lat2) *
+                        Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                point.distanceFromCenter = 6371000 * c; // Distance in meters
+            });
+        }
+
+        function calculateCenter() {
+            if (!data || data.length === 0) return null;
+            const lats = data.map(d => d.Latitude);
+            const lons = data.map(d => d.Longitude);
+            return {
+                latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+                longitude: (Math.min(...lons) + Math.max(...lons)) / 2
+            };
+        }
+
+        function createRingOutlines(outerRadius, innerRadius) {
+            if (!center) return [];
+            
+            const createCirclePoints = (radius, segments = 64) => {
+                const points = [];
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    const lat = center.latitude + (radius / 111000) * Math.cos(angle);
+                    const lon = center.longitude + (radius / (111000 * Math.cos(center.latitude * Math.PI / 180))) * Math.sin(angle);
+                    points.push([lon, lat]);
+                }
+                return points;
+            };
+            
+            const outlines = [];
+            
+            // Outer ring outline
+            if (outerRadius > 0) {
+                const outerCircle = createCirclePoints(outerRadius);
+                outlines.push({
+                    polygon: outerCircle,
+                    id: 'outer-ring',
+                    color: [100, 200, 255, 120],
+                    lineWidth: 2
+                });
+            }
+            
+            // Inner ring outline
+            if (innerRadius > 0) {
+                const innerCircle = createCirclePoints(innerRadius);
+                outlines.push({
+                    polygon: innerCircle,
+                    id: 'inner-ring',
+                    color: [255, 255, 255, 150],
+                    lineWidth: 2
+                });
+            }
+            
+            return outlines;
+        }
+
         // Layer Creation Functions
         function createHeatmapLayer() {
             const colorRangeRGB = colorScale.map(([_, hexColor]) => {
@@ -880,12 +1073,28 @@
                 return [rgb.r, rgb.g, rgb.b];
             });
 
+            // Calculate propagation radii if in propagation mode
+            let outerRadius = 0, innerRadius = 0;
+            if (propagationMode && center) {
+                outerRadius = currentTime * soundSpeed; // meters
+                innerRadius = Math.max(0, (currentTime - ringWidth) * soundSpeed); // meters
+            }
+
             return new deck.HeatmapLayer({
                 id: 'heatmap',
                 data,
                 getPosition: d => [d.Longitude, d.Latitude],
                 getWeight: d => {
                     const normalizedValue = (d.Value - valueRange.min) / (valueRange.max - valueRange.min);
+                    
+                    // In propagation mode, filter by ring area
+                    if (propagationMode && center) {
+                        const distance = d.distanceFromCenter || 0;
+                        if (distance > outerRadius || distance < innerRadius) {
+                            return 0; // Zero weight for points outside the ring
+                        }
+                    }
+                    
                     return normalizedValue;
                 },
                 radiusPixels: heatmapConfig.radius,
@@ -894,6 +1103,9 @@
                 colorRange: colorRangeRGB,
                 opacity: currentOpacity,
                 pickable: false,
+                updateTriggers: {
+                    getWeight: propagationMode ? [currentTime, ringWidth] : []
+                },
                 parameters: {
                     depthTest: false
                 }
@@ -925,6 +1137,48 @@
             if (heatmapLayer) {
                 heatmapLayer = createHeatmapLayer();
                 layers.push(heatmapLayer);
+            }
+            
+            // Add propagation-specific layers
+            if (propagationMode && center) {
+                const outerRadius = currentTime * soundSpeed;
+                const innerRadius = Math.max(0, (currentTime - ringWidth) * soundSpeed);
+                
+                // Add ring outlines
+                const ringOutlines = createRingOutlines(outerRadius, innerRadius);
+                if (ringOutlines.length > 0) {
+                    const outlineLayer = new deck.PolygonLayer({
+                        id: 'ring-outlines',
+                        data: ringOutlines,
+                        getPolygon: d => d.polygon,
+                        getFillColor: [0, 0, 0, 0], // Transparent fill
+                        getLineColor: d => d.color,
+                        getLineWidth: d => d.lineWidth,
+                        stroked: true,
+                        filled: false,
+                        pickable: false,
+                        parameters: {
+                            depthTest: false
+                        }
+                    });
+                    layers.push(outlineLayer);
+                }
+
+                // Add center point
+                const centerLayer = new deck.ScatterplotLayer({
+                    id: 'sound-source',
+                    data: [center],
+                    getPosition: d => [d.longitude, d.latitude],
+                    getRadius: 500,
+                    getFillColor: [255, 220, 0, 200],
+                    stroked: true,
+                    getLineColor: [255, 180, 0, 255],
+                    getLineWidth: 3,
+                    radiusMinPixels: 12,
+                    radiusMaxPixels: 30,
+                    pickable: false
+                });
+                layers.push(centerLayer);
             }
             
             if (dataPointsLayer) {
@@ -1113,6 +1367,110 @@
             });
             
             showNotification('Zoomed to data extent', 'success');
+        }
+
+        // Propagation Animation Functions
+        function playAnimation() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            document.getElementById('playIcon').style.display = 'none';
+            document.getElementById('pauseIcon').style.display = 'block';
+            
+            function animate() {
+                if (!isPlaying) return;
+                
+                currentTime += 0.1 * animationSpeedMultiplier;
+                if (currentTime >= maxTime) {
+                    currentTime = 0; // Loop animation
+                }
+                
+                const progress = (currentTime / maxTime) * 100;
+                document.getElementById('timelineSlider').value = progress;
+                updateLayers();
+                updatePropagationInfo();
+                
+                animationId = setTimeout(animate, animationSpeed);
+            }
+            
+            animate();
+        }
+
+        function pauseAnimation() {
+            isPlaying = false;
+            document.getElementById('playIcon').style.display = 'block';
+            document.getElementById('pauseIcon').style.display = 'none';
+            
+            if (animationId) {
+                clearTimeout(animationId);
+                animationId = null;
+            }
+        }
+
+        function resetAnimation() {
+            pauseAnimation();
+            currentTime = 0;
+            document.getElementById('timelineSlider').value = 0;
+            updateLayers();
+            updatePropagationInfo();
+        }
+
+        function updatePropagationInfo() {
+            if (!propagationMode) return;
+            
+            const outerRadius = currentTime * soundSpeed;
+            const innerRadius = Math.max(0, (currentTime - ringWidth) * soundSpeed);
+            
+            document.getElementById('currentTimeValue').textContent = `${currentTime.toFixed(2)}s`;
+            document.getElementById('outerRadiusValue').textContent = `${outerRadius.toFixed(0)} m`;
+            document.getElementById('innerRadiusValue').textContent = `${innerRadius.toFixed(0)} m`;
+            document.getElementById('timeDisplay').textContent = `${currentTime.toFixed(2)}s / ${maxTime.toFixed(2)}s`;
+            
+            if (center) {
+                document.getElementById('centerCoordsValue').textContent = 
+                    `${center.latitude.toFixed(3)}, ${center.longitude.toFixed(3)}`;
+            }
+        }
+
+        function togglePropagationMode() {
+            propagationMode = !propagationMode;
+            const toggle = document.getElementById('propagationModeToggle');
+            
+            // Show/hide propagation panels
+            const propagationPanels = [
+                'propagationControlsPanel',
+                'propagationInfoPanel', 
+                'propagationTimelinePanel'
+            ];
+            
+            propagationPanels.forEach(panelId => {
+                const panel = document.getElementById(panelId);
+                panel.style.display = propagationMode ? 'block' : 'none';
+            });
+            
+            // Show/hide propagation shortcuts in help panel
+            const propagationShortcuts = document.getElementById('propagationShortcuts');
+            if (propagationShortcuts) {
+                propagationShortcuts.style.display = propagationMode ? 'block' : 'none';
+            }
+            
+            if (propagationMode) {
+                // Calculate center if not already done
+                if (!center) {
+                    center = calculateCenter();
+                    if (center) {
+                        precomputeDistances();
+                    }
+                }
+                resetAnimation();
+                updatePropagationInfo();
+                showNotification('Propagation mode enabled', 'success');
+            } else {
+                pauseAnimation();
+                showNotification('Propagation mode disabled', 'info');
+            }
+            
+            updateLayers();
         }
 
         function exportData() {
@@ -1304,11 +1662,20 @@
                     dataStatus.innerHTML = '<i data-lucide="database" class="w-3 h-3"></i><span>Loaded</span>';
                     lucide.createIcons();
 
-                    // Center map on data
+                    // Center map on data and calculate propagation center
                     const lats = data.map(d => d.Latitude);
                     const lons = data.map(d => d.Longitude);
                     const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
                     const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+                    
+                    // Update propagation center and precompute distances
+                    center = { latitude: centerLat, longitude: centerLon };
+                    precomputeDistances();
+                    
+                    // Update propagation info if in propagation mode
+                    if (propagationMode) {
+                        updatePropagationInfo();
+                    }
 
                     heatmapLayer = createHeatmapLayer();
                     dataPointsLayer = createDataPointsLayer();
@@ -1461,13 +1828,35 @@
         // Event Listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Control event listeners
-            document.getElementById('csvSelector').addEventListener('change', onCSVSelectionChange);
-            document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
-            document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
-            document.getElementById('zoomToExtentBtn').addEventListener('click', zoomToExtent);
-            document.getElementById('exportDataBtn').addEventListener('click', exportData);
-            document.getElementById('toggleLegendBtn').addEventListener('click', toggleLegend);
-            document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+                    document.getElementById('csvSelector').addEventListener('change', onCSVSelectionChange);
+        document.getElementById('valuePickerToggle').addEventListener('change', toggleValuePickerMode);
+        document.getElementById('copyValueBtn').addEventListener('click', copyPickedValue);
+        document.getElementById('zoomToExtentBtn').addEventListener('click', zoomToExtent);
+        document.getElementById('exportDataBtn').addEventListener('click', exportData);
+        document.getElementById('toggleLegendBtn').addEventListener('click', toggleLegend);
+        document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+        
+        // Propagation mode toggle
+        document.getElementById('propagationModeToggle').addEventListener('change', togglePropagationMode);
+        
+        // Propagation timeline controls
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            if (isPlaying) {
+                pauseAnimation();
+            } else {
+                playAnimation();
+            }
+        });
+        document.getElementById('resetBtn').addEventListener('click', resetAnimation);
+        
+        // Timeline slider
+        document.getElementById('timelineSlider').addEventListener('input', (e) => {
+            pauseAnimation();
+            const progress = parseFloat(e.target.value) / 100;
+            currentTime = progress * maxTime;
+            updateLayers();
+            updatePropagationInfo();
+        });
             
             // Help panel toggle
             const helpBtn = document.getElementById('helpBtn');
@@ -1512,6 +1901,44 @@
                         e.preventDefault();
                         helpBtn.click();
                         break;
+                    case ' ':
+                        if (propagationMode) {
+                            e.preventDefault();
+                            if (isPlaying) {
+                                pauseAnimation();
+                            } else {
+                                playAnimation();
+                            }
+                        }
+                        break;
+                    case 'arrowleft':
+                        if (propagationMode) {
+                            e.preventDefault();
+                            pauseAnimation();
+                            currentTime = Math.max(0, currentTime - 0.5 * animationSpeedMultiplier);
+                            const progressLeft = (currentTime / maxTime) * 100;
+                            document.getElementById('timelineSlider').value = progressLeft;
+                            updateLayers();
+                            updatePropagationInfo();
+                        }
+                        break;
+                    case 'arrowright':
+                        if (propagationMode) {
+                            e.preventDefault();
+                            pauseAnimation();
+                            currentTime = Math.min(maxTime, currentTime + 0.5 * animationSpeedMultiplier);
+                            const progressRight = (currentTime / maxTime) * 100;
+                            document.getElementById('timelineSlider').value = progressRight;
+                            updateLayers();
+                            updatePropagationInfo();
+                        }
+                        break;
+                    case 'r':
+                        if (propagationMode) {
+                            e.preventDefault();
+                            resetAnimation();
+                        }
+                        break;
                 }
             });
 
@@ -1534,11 +1961,38 @@
                 updateLayers();
             });
 
-            document.getElementById('opacitySlider').addEventListener('input', function (e) {
-                currentOpacity = parseFloat(e.target.value);
-                document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
+                    document.getElementById('opacitySlider').addEventListener('input', function (e) {
+            currentOpacity = parseFloat(e.target.value);
+            document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
+            updateLayers();
+        });
+
+        // Propagation control sliders
+        document.getElementById('animationSpeedSlider').addEventListener('input', (e) => {
+            animationSpeedMultiplier = parseFloat(e.target.value);
+            document.getElementById('animationSpeedValue').textContent = `${animationSpeedMultiplier.toFixed(1)}x`;
+        });
+
+        document.getElementById('ringWidthSlider').addEventListener('input', (e) => {
+            ringWidth = parseFloat(e.target.value);
+            document.getElementById('ringWidthValue').textContent = `${ringWidth.toFixed(1)} s`;
+            if (propagationMode) {
                 updateLayers();
-            });
+                updatePropagationInfo();
+            }
+        });
+
+        document.getElementById('maxTimeSlider').addEventListener('input', (e) => {
+            maxTime = parseInt(e.target.value);
+            document.getElementById('maxTimeValue').textContent = `${maxTime.toFixed(1)} s`;
+            // Reset animation if current time exceeds new max
+            if (currentTime > maxTime) {
+                resetAnimation();
+            }
+            if (propagationMode) {
+                updatePropagationInfo();
+            }
+        });
 
             // Initialize the application
             initializeMap();
