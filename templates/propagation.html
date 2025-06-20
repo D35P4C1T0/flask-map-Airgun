@@ -63,6 +63,7 @@
 
         .timeline-slider {
             -webkit-appearance: none;
+            appearance: none;
             width: 100%;
             height: 8px;
             border-radius: 4px;
@@ -125,14 +126,17 @@
             position: fixed;
             top: 1rem;
             left: 1rem;
-            width: 20rem;
+            width: 22rem;
             z-index: 1000;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
         }
 
         .info-panel {
             border-radius: 16px;
             padding: 1.5rem;
             transition: all 0.3s ease;
+            margin-bottom: 1rem;
         }
 
         .info-title {
@@ -218,23 +222,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Progress Bar */
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-top: 1rem;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-
         /* CSV Selector Styles */
         #csvSelector {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -254,8 +241,70 @@
             color: white;
         }
 
-        /* Responsive Design for Small Screens */
-        @media (max-width: 767px) {
+        /* Enhanced Range Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, rgba(226, 232, 240, 0.3), rgba(203, 213, 225, 0.5));
+            outline: none;
+            transition: all 0.3s ease;
+            margin: 0.5rem 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.6);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Control row styling */
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .control-value {
+            min-width: 4rem;
+            text-align: right;
+            font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+            font-weight: 600;
+            color: #60a5fa;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .info-container {
+                width: 18rem;
+            }
+        }
+
+        @media (max-width: 768px) {
             .info-container {
                 position: fixed;
                 bottom: 1rem;
@@ -263,61 +312,14 @@
                 right: 1rem;
                 top: auto;
                 width: auto;
-                max-height: 50vh;
-                overflow-y: auto;
-                overflow-x: hidden;
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-                /* Ensure smooth scrolling */
-                -webkit-overflow-scrolling: touch;
-                scroll-behavior: smooth;
-            }
-
-            .info-panel {
-                padding: 1rem;
-                margin-bottom: 0;
-            }
-
-            .nav-container {
-                top: 1rem;
-                right: 1rem;
-                left: auto;
-            }
-
-            .nav-btn {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
+                max-height: 40vh;
             }
 
             .timeline-container {
-                bottom: calc(50vh + 2rem);
+                bottom: calc(40vh + 2rem);
                 left: 1rem;
                 right: 1rem;
                 width: auto;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .info-container {
-                max-height: 40vh;
-                bottom: 0.5rem;
-                left: 0.5rem;
-                right: 0.5rem;
-            }
-
-            .info-panel {
-                padding: 0.75rem;
-            }
-
-            .info-title {
-                font-size: 0.9rem;
-            }
-
-            .timeline-container {
-                bottom: calc(40vh + 1.5rem);
-                left: 0.5rem;
-                right: 0.5rem;
             }
         }
     </style>
@@ -340,7 +342,7 @@
     <!-- Info Panel -->
     <div class="info-container">
         <!-- CSV Selector Panel -->
-        <div class="info-panel glass-dark mb-4">
+        <div class="info-panel glass-dark">
             <div class="info-title">
                 <i data-lucide="file-text"></i>
                 Data Source
@@ -350,6 +352,32 @@
                     <option value="">Loading datasets...</option>
                 </select>
             </div>
+        </div>
+        
+        <!-- Propagation Controls Panel -->
+        <div class="info-panel glass-dark">
+            <div class="info-title">
+                <i data-lucide="settings"></i>
+                Propagation Settings
+            </div>
+            
+                         <div class="control-row">
+                 <span class="info-label">Animation Speed:</span>
+                 <span class="control-value" id="animationSpeedValue">1.0x</span>
+             </div>
+             <input type="range" id="animationSpeedSlider" min="0.1" max="30.0" value="1.0" step="0.1">
+            
+                         <div class="control-row">
+                 <span class="info-label">Ring Width:</span>
+                 <span class="control-value" id="ringWidthValue">10.0 s</span>
+             </div>
+             <input type="range" id="ringWidthSlider" min="1.0" max="3000.0" value="10.0" step="1.0">
+            
+                         <div class="control-row">
+                 <span class="info-label">Max Time:</span>
+                 <span class="control-value" id="maxTimeValue">300.0 s</span>
+             </div>
+             <input type="range" id="maxTimeSlider" min="30" max="1000" value="300" step="10">
         </div>
         
         <!-- Propagation Info Panel -->
@@ -363,12 +391,12 @@
                 <span class="info-value" id="current-time">0.00s</span>
             </div>
             <div class="info-item">
-                <span class="info-label">Active Points:</span>
-                <span class="info-value" id="active-points">0</span>
+                <span class="info-label">Outer Radius:</span>
+                <span class="info-value" id="outer-radius">0 m</span>
             </div>
             <div class="info-item">
-                <span class="info-label">Max Intensity:</span>
-                <span class="info-value" id="max-intensity">0.00</span>
+                <span class="info-label">Inner Radius:</span>
+                <span class="info-value" id="inner-radius">0 m</span>
             </div>
             <div class="info-item">
                 <span class="info-label">Center:</span>
@@ -377,9 +405,6 @@
             <div class="info-item">
                 <span class="info-label">Data Points:</span>
                 <span class="info-value" id="data-points">Loading...</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
             </div>
         </div>
     </div>
@@ -406,7 +431,7 @@
                            min="0" max="100" value="0" step="1">
                 </div>
                 <div class="text-white font-mono text-sm">
-                    <span id="time-display">0.00s / 10.00s</span>
+                    <span id="time-display">0.00s / 300.00s</span>
                 </div>
             </div>
         </div>
@@ -418,16 +443,58 @@
 
         // Global variables
         let deckgl;
-        let propagationData = null;
-        let currentFrame = 0;
+        let heatmapData = null;
+        let currentTime = 0;
         let isPlaying = false;
         let animationId = null;
-        let totalFrames = 30;
-        let animationSpeed = 300; // ms per frame (smooth animation)
+        let maxTime = 300; // seconds
+        let animationSpeed = 100; // ms per frame
+        
+        // Propagation settings
+        const soundSpeed = 1481; // m/s in water (fixed, physically accurate)
+        let ringWidth = 10.0; // seconds
+        let animationSpeedMultiplier = 1.0; // Speed multiplier for animation playback
         
         // CSV management
         let availableCSVFiles = {};
         let currentCSVKey = null;
+        
+        // Heatmap variables (similar to map.html)
+        let data = [];
+        let valueRange = { min: 0, max: 1 };
+        let colorScale = [];
+        let center = null;
+        let staticHeatmapLayer = null; // Pre-rendered heatmap layer
+
+        // Constants
+        const OSM_TILE_LAYER = {
+            id: 'base-map',
+            data: 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            minZoom: 0,
+            maxZoom: 19,
+            tileSize: 256,
+            renderSubLayers: props => {
+                const {
+                    bbox: { west, south, east, north }
+                } = props.tile;
+
+                return new deck.BitmapLayer(props, {
+                    data: null,
+                    image: props.data,
+                    bounds: [west, south, east, north]
+                });
+            }
+        };
+
+        // Utility functions
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
 
         // Load available CSV files list
         async function loadCSVFilesList() {
@@ -461,26 +528,26 @@
             }
         }
 
-        // Load propagation data for specific CSV
-        async function loadPropagationData(csvKey = null) {
+        // Load heatmap data for specific CSV
+        async function loadHeatmapData(csvKey = null) {
             const keyToLoad = csvKey || currentCSVKey;
-            const url = keyToLoad ? `/heatmap/propagation-data/${encodeURIComponent(keyToLoad)}` : '/heatmap/propagation-data';
+            const url = keyToLoad ? `/heatmap/data/${encodeURIComponent(keyToLoad)}` : '/heatmap/data';
             
-            console.log('Loading propagation data from:', url);
+            console.log('Loading heatmap data from:', url);
             const response = await fetch(url);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            const data = await response.json();
+            const result = await response.json();
             
             // Check if there's an error in the response
-            if (data.error) {
-                throw new Error(data.error);
+            if (result.error) {
+                throw new Error(result.error);
             }
             
-            return data;
+            return result;
         }
 
         // Handle CSV selection change
@@ -494,28 +561,37 @@
                 
                 // Reset animation
                 stop();
-                currentFrame = 0;
+                currentTime = 0;
                 
                 // Show loading
                 document.getElementById('loading').style.display = 'flex';
                 
                 // Reload data
-                loadPropagationData(selectedKey)
-                    .then(data => {
-                        propagationData = data;
-                        totalFrames = propagationData.timeSteps;
+                loadHeatmapData(selectedKey)
+                    .then(result => {
+                        data = result.data;
+                        valueRange = result.valueRange;
+                        colorScale = result.colorScale;
+                        currentCSVKey = result.csvKey;
+                        
+                        // Calculate center
+                        const lats = data.map(d => d.Latitude);
+                        const lons = data.map(d => d.Longitude);
+                        center = {
+                            latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+                            longitude: (Math.min(...lons) + Math.max(...lons)) / 2
+                        };
                         
                         // Update UI
                         updateInfoPanel();
-                        document.getElementById('timeline-slider').max = totalFrames - 1;
                         document.getElementById('timeline-slider').value = 0;
                         
                         // Update map center
-                        if (deckgl && propagationData.center) {
+                        if (deckgl && center) {
                             deckgl.setProps({
                                 initialViewState: {
-                                    longitude: propagationData.center.longitude,
-                                    latitude: propagationData.center.latitude,
+                                    longitude: center.longitude,
+                                    latitude: center.latitude,
                                     zoom: 8,
                                     pitch: 0,
                                     bearing: 0
@@ -529,7 +605,7 @@
                         // Hide loading
                         document.getElementById('loading').style.display = 'none';
                         
-                        console.log('New propagation data loaded:', propagationData);
+                        console.log('New heatmap data loaded:', { data: data.length, center });
                     })
                     .catch(error => {
                         console.error('Error loading new data:', error);
@@ -553,21 +629,34 @@
                 // Add CSV selector event listener
                 document.getElementById('csvSelector').addEventListener('change', onCSVSelectionChange);
                 
-                console.log('Loading propagation data...');
-                propagationData = await loadPropagationData();
+                console.log('Loading heatmap data...');
+                const result = await loadHeatmapData();
                 
-                console.log('Propagation data loaded:', propagationData);
+                data = result.data;
+                valueRange = result.valueRange;
+                colorScale = result.colorScale;
+                currentCSVKey = result.csvKey;
+                
+                console.log('Heatmap data loaded:', { data: data.length, valueRange, colorScale: colorScale.length });
                 
                 // Validate required data structure
-                if (!propagationData.center || !propagationData.frames || !propagationData.timeSteps) {
-                    throw new Error('Invalid propagation data structure');
+                if (!data || data.length === 0) {
+                    throw new Error('No data available');
                 }
                 
-                totalFrames = propagationData.timeSteps;
+                // Calculate center
+                const lats = data.map(d => d.Latitude);
+                const lons = data.map(d => d.Longitude);
+                center = {
+                    latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+                    longitude: (Math.min(...lons) + Math.max(...lons)) / 2
+                };
+                
+                // Pre-compute distances for better performance
+                precomputeDistances();
                 
                 // Update UI
                 updateInfoPanel();
-                document.getElementById('timeline-slider').max = totalFrames - 1;
                 
                 // Initialize map
                 initializeMap();
@@ -589,13 +678,10 @@
         }
 
         function initializeMap() {
-            if (!propagationData || !propagationData.center) {
-                console.error('Propagation data not loaded or missing center point');
+            if (!center) {
+                console.error('Center point not calculated');
                 return;
             }
-            
-            // Calculate initial view state from center point
-            const center = propagationData.center;
             
             deckgl = new deck.DeckGL({
                 container: 'map',
@@ -615,171 +701,188 @@
             updateVisualization();
         }
 
+        // Pre-compute distances for all data points to improve performance
+        function precomputeDistances() {
+            if (!data || !center) return;
+            
+            data.forEach(point => {
+                const lat1 = center.latitude * Math.PI / 180;
+                const lat2 = point.Latitude * Math.PI / 180;
+                const deltaLat = (point.Latitude - center.latitude) * Math.PI / 180;
+                const deltaLon = (point.Longitude - center.longitude) * Math.PI / 180;
+                
+                const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                        Math.cos(lat1) * Math.cos(lat2) *
+                        Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                point.distanceFromCenter = 6371000 * c; // Distance in meters
+            });
+        }
+
+        function createDynamicHeatmapLayer(outerRadius, innerRadius) {
+            if (!data || data.length === 0 || !colorScale || !center) return null;
+            
+            const colorRangeRGB = colorScale.map(([_, hexColor]) => {
+                const rgb = hexToRgb(hexColor);
+                return [rgb.r, rgb.g, rgb.b];
+            });
+
+            return new deck.HeatmapLayer({
+                id: 'dynamic-heatmap',
+                data,
+                getPosition: d => [d.Longitude, d.Latitude],
+                getWeight: d => {
+                    // Use pre-computed distance for better performance
+                    const distance = d.distanceFromCenter || 0;
+                    
+                    // Only include points within the ring
+                    if (distance <= outerRadius && distance >= innerRadius) {
+                        const normalizedValue = (d.Value - valueRange.min) / (valueRange.max - valueRange.min);
+                        return normalizedValue;
+                    }
+                    return 0; // Zero weight for points outside the ring
+                },
+                radiusPixels: 60,
+                intensity: 1,
+                threshold: 0.03,
+                colorRange: colorRangeRGB,
+                opacity: 1.0,
+                pickable: false,
+                updateTriggers: {
+                    getWeight: [outerRadius, innerRadius] // Update when radii change
+                },
+                parameters: {
+                    depthTest: false
+                }
+            });
+        }
+
+
+
+        function createRingOutlines(outerRadius, innerRadius) {
+            if (!center) return [];
+            
+            const createCirclePoints = (radius, segments = 64) => {
+                const points = [];
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    const lat = center.latitude + (radius / 111000) * Math.cos(angle);
+                    const lon = center.longitude + (radius / (111000 * Math.cos(center.latitude * Math.PI / 180))) * Math.sin(angle);
+                    points.push([lon, lat]);
+                }
+                return points;
+            };
+            
+            const outlines = [];
+            
+            // Outer ring outline
+            if (outerRadius > 0) {
+                const outerCircle = createCirclePoints(outerRadius);
+                outlines.push({
+                    polygon: outerCircle,
+                    id: 'outer-ring',
+                    color: [100, 200, 255, 120],
+                    lineWidth: 2
+                });
+            }
+            
+            // Inner ring outline
+            if (innerRadius > 0) {
+                const innerCircle = createCirclePoints(innerRadius);
+                outlines.push({
+                    polygon: innerCircle,
+                    id: 'inner-ring',
+                    color: [255, 255, 255, 150],
+                    lineWidth: 2
+                });
+            }
+            
+            return outlines;
+        }
+
         function updateVisualization() {
-            if (!propagationData || !deckgl || !propagationData.center || !propagationData.frames) {
-                console.warn('Cannot update visualization: missing data or map not initialized');
+            if (!deckgl || !center) {
+                console.warn('Cannot update visualization: missing map or center');
                 return;
             }
 
-            const frameData = propagationData.frames[currentFrame] || [];
-            const center = propagationData.center;
+            const layers = [new deck.TileLayer(OSM_TILE_LAYER)];
             
-            // Create smooth wave visualization
-            const layers = [];
-            const currentTime = (currentFrame / (totalFrames - 1)) * 10;
+            // Calculate ring radii based on current time and sound speed
+            const outerRadius = currentTime * soundSpeed; // meters
+            const innerRadius = Math.max(0, (currentTime - ringWidth) * soundSpeed); // meters
             
-            // Create smooth gradient wave effect
-            const smoothWaveData = [];
-            
-            // Generate smooth wave front
-            if (frameData.length > 0) {
-                // Sort points by distance for smooth wave front
-                const sortedData = [...frameData].sort((a, b) => a.distance - b.distance);
-                
-                // Create smooth interpolated points along the wave front
-                for (let i = 0; i < sortedData.length; i++) {
-                    const point = sortedData[i];
-                    const smoothIntensity = point.intensity * (1 - Math.pow(point.distance / propagationData.maxDistance, 0.5));
-                    
-                    if (smoothIntensity > 0.01) {
-                        smoothWaveData.push({
-                            ...point,
-                            smoothIntensity: smoothIntensity,
-                            wavePhase: (currentTime * 2 - point.distance * 0.5) % (Math.PI * 2)
-                        });
-                    }
-                }
+            // Add dynamic heatmap layer (only shows data in the ring area)
+            const heatmapLayer = createDynamicHeatmapLayer(outerRadius, innerRadius);
+            if (heatmapLayer) {
+                layers.push(heatmapLayer);
             }
             
-            // Main smooth wave layer
-            if (smoothWaveData.length > 0) {
-                layers.push(new deck.ScatterplotLayer({
-                    id: 'smooth-wave',
-                    data: smoothWaveData,
-                    getPosition: d => [d.longitude, d.latitude],
-                    getRadius: d => {
-                        // Smooth size transition based on intensity
-                        const baseSize = 80 + (d.smoothIntensity * 300);
-                        const waveModulation = 1 + (0.15 * Math.sin(d.wavePhase));
-                        return baseSize * waveModulation;
-                    },
-                    getFillColor: d => {
-                        // Smooth color gradient from blue to red
-                        const intensity = d.smoothIntensity;
-                        const waveAlpha = 0.6 + (0.3 * Math.sin(d.wavePhase));
-                        
-                        if (intensity > 0.7) {
-                            // High intensity: red-orange
-                            return [255, Math.floor(100 + 155 * intensity), 0, Math.floor(255 * waveAlpha)];
-                        } else if (intensity > 0.4) {
-                            // Medium intensity: yellow-orange
-                            return [255, Math.floor(200 + 55 * intensity), Math.floor(50 * intensity), Math.floor(255 * waveAlpha)];
-                        } else {
-                            // Low intensity: blue-cyan
-                            return [Math.floor(100 * intensity), Math.floor(150 + 105 * intensity), 255, Math.floor(255 * waveAlpha)];
-                        }
-                    },
-                    radiusMinPixels: 4,
-                    radiusMaxPixels: 80,
-                    pickable: true,
-                    updateTriggers: {
-                        getRadius: currentTime,
-                        getFillColor: currentTime
-                    }
-                }));
-            }
-            
-            // Smooth expanding wave rings from center
-            const waveRings = [];
-            for (let ring = 0; ring < 3; ring++) {
-                const ringDelay = ring * 2.5;
-                const ringTime = currentTime - ringDelay;
-                
-                if (ringTime > 0 && ringTime < 8) {
-                    const progress = ringTime / 8;
-                    const radius = progress * propagationData.maxDistance * 111000 * 0.8;
-                    const opacity = Math.sin(progress * Math.PI) * 0.4; // Smooth fade in/out
-                    
-                    waveRings.push({
-                        longitude: center.longitude,
-                        latitude: center.latitude,
-                        radius: radius,
-                        opacity: opacity,
-                        ring: ring
-                    });
-                }
-            }
-            
-            // Smooth wave rings
-            if (waveRings.length > 0) {
-                layers.push(new deck.ScatterplotLayer({
-                    id: 'wave-rings',
-                    data: waveRings,
-                    getPosition: d => [d.longitude, d.latitude],
-                    getRadius: d => d.radius,
-                    getFillColor: d => [80, 160, 255, Math.floor(d.opacity * 255)],
+            // Add ring outlines for visual reference
+            const ringOutlines = createRingOutlines(outerRadius, innerRadius);
+            if (ringOutlines.length > 0) {
+                const outlineLayer = new deck.PolygonLayer({
+                    id: 'ring-outlines',
+                    data: ringOutlines,
+                    getPolygon: d => d.polygon,
+                    getFillColor: [0, 0, 0, 0], // Transparent fill
+                    getLineColor: d => d.color,
+                    getLineWidth: d => d.lineWidth,
                     stroked: true,
-                    getLineColor: d => [120, 200, 255, Math.floor(d.opacity * 200)],
-                    getLineWidth: 1,
-                    radiusUnits: 'meters',
-                    radiusScale: 1,
-                    pickable: false
-                }));
+                    filled: false,
+                    pickable: false,
+                    parameters: {
+                        depthTest: false
+                    }
+                });
+                layers.push(outlineLayer);
             }
             
-            // Smooth pulsing center point
-            const centerPulse = 1 + (0.2 * Math.sin(currentTime * 3));
-            layers.push(new deck.ScatterplotLayer({
-                id: 'sound-source',
-                data: [center],
-                getPosition: d => [d.longitude, d.latitude],
-                getRadius: 200 * centerPulse,
-                getFillColor: [255, 220, 0, 180],
-                stroked: true,
-                getLineColor: [255, 180, 0, 220],
-                getLineWidth: 2,
-                radiusMinPixels: 12,
-                radiusMaxPixels: 25,
-                pickable: true,
-                updateTriggers: {
-                    getRadius: currentTime
-                }
-            }));
+            // Add center point
+            if (center) {
+                const centerLayer = new deck.ScatterplotLayer({
+                    id: 'sound-source',
+                    data: [center],
+                    getPosition: d => [d.longitude, d.latitude],
+                    getRadius: 500,
+                    getFillColor: [255, 220, 0, 200],
+                    stroked: true,
+                    getLineColor: [255, 180, 0, 255],
+                    getLineWidth: 3,
+                    radiusMinPixels: 12,
+                    radiusMaxPixels: 30,
+                    pickable: false
+                });
+                layers.push(centerLayer);
+            }
 
             deckgl.setProps({ layers });
             
             // Update info panel
-            updateInfoPanel(frameData);
+            updateInfoPanel();
         }
 
-        function updateInfoPanel(frameData = []) {
-            const currentTime = (currentFrame / (totalFrames - 1)) * 10; // 10 second animation
-            const maxIntensity = frameData.length > 0 ? Math.max(...frameData.map(d => d.intensity)) : 0;
-            const center = propagationData ? propagationData.center : null;
-            const sampleInfo = propagationData ? propagationData.sampleInfo : null;
-            
+        function updateInfoPanel() {
             document.getElementById('current-time').textContent = `${currentTime.toFixed(2)}s`;
-            document.getElementById('active-points').textContent = frameData.length.toString();
-            document.getElementById('max-intensity').textContent = maxIntensity.toFixed(2);
+            
+            const outerRadius = currentTime * soundSpeed;
+            const innerRadius = Math.max(0, (currentTime - ringWidth) * soundSpeed);
+            
+            document.getElementById('outer-radius').textContent = `${outerRadius.toFixed(0)} m`;
+            document.getElementById('inner-radius').textContent = `${innerRadius.toFixed(0)} m`;
             
             if (center) {
                 document.getElementById('center-coords').textContent = 
                     `${center.latitude.toFixed(3)}, ${center.longitude.toFixed(3)}`;
             }
             
-            if (sampleInfo) {
-                document.getElementById('data-points').textContent = 
-                    `${sampleInfo.sampledPoints.toLocaleString()} / ${sampleInfo.originalPoints.toLocaleString()}`;
+            if (data) {
+                document.getElementById('data-points').textContent = data.length.toLocaleString();
             }
             
-            // Update progress
-            const progress = (currentFrame / (totalFrames - 1)) * 100;
-            document.getElementById('progress-fill').style.width = `${progress}%`;
-            
             // Update time display
-            const totalTime = 10.0; // Total animation time in seconds
             document.getElementById('time-display').textContent = 
-                `${currentTime.toFixed(2)}s / ${totalTime.toFixed(2)}s`;
+                `${currentTime.toFixed(2)}s / ${maxTime.toFixed(2)}s`;
         }
 
         function playAnimation() {
@@ -792,12 +895,13 @@
             function animate() {
                 if (!isPlaying) return;
                 
-                currentFrame++;
-                if (currentFrame >= totalFrames) {
-                    currentFrame = 0; // Loop animation
+                currentTime += 0.1 * animationSpeedMultiplier; // Increment based on speed multiplier
+                if (currentTime >= maxTime) {
+                    currentTime = 0; // Loop animation
                 }
                 
-                document.getElementById('timeline-slider').value = currentFrame;
+                const progress = (currentTime / maxTime) * 100;
+                document.getElementById('timeline-slider').value = progress;
                 updateVisualization();
                 
                 animationId = setTimeout(animate, animationSpeed);
@@ -819,7 +923,7 @@
 
         function resetAnimation() {
             pauseAnimation();
-            currentFrame = 0;
+            currentTime = 0;
             document.getElementById('timeline-slider').value = 0;
             updateVisualization();
         }
@@ -827,59 +931,46 @@
         // Screenshot functionality
         function takeScreenshot() {
             try {
-                // Get the deck.gl canvas
                 const deckCanvas = document.querySelector('#map canvas');
                 if (!deckCanvas) {
                     console.error('Map canvas not found');
                     return;
                 }
 
-                // Create a temporary canvas to combine all visual elements
                 const tempCanvas = document.createElement('canvas');
                 const ctx = tempCanvas.getContext('2d');
                 
-                // Set canvas size to match the map container
                 const mapContainer = document.getElementById('map');
                 tempCanvas.width = mapContainer.offsetWidth;
                 tempCanvas.height = mapContainer.offsetHeight;
 
-                // Fill background
                 ctx.fillStyle = '#1a1a1a';
                 ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-                // Draw the deck.gl canvas
                 ctx.drawImage(deckCanvas, 0, 0);
 
-                // Add watermark/metadata
-                const addWatermark = () => {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-                    ctx.fillRect(10, tempCanvas.height - 100, 350, 90);
-                    
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 16px Arial';
-                    ctx.fillText('Sound Propagation Analysis', 20, tempCanvas.height - 75);
-                    
-                    ctx.font = '12px Arial';
-                    ctx.fillStyle = '#ccc';
-                    const currentTime = (currentFrame / (totalFrames - 1)) * 10;
-                    ctx.fillText(`Dataset: ${currentCSVKey || 'Unknown'}`, 20, tempCanvas.height - 55);
-                    ctx.fillText(`Time: ${currentTime.toFixed(2)}s / 10.00s`, 20, tempCanvas.height - 35);
-                    ctx.fillText(`Generated: ${new Date().toLocaleString()}`, 20, tempCanvas.height - 15);
-                };
+                // Add watermark
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(10, tempCanvas.height - 120, 400, 110);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('Sound Propagation Analysis', 20, tempCanvas.height - 95);
+                
+                ctx.font = '12px Arial';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText(`Dataset: ${currentCSVKey || 'Unknown'}`, 20, tempCanvas.height - 75);
+                ctx.fillText(`Time: ${currentTime.toFixed(2)}s | Speed: ${animationSpeedMultiplier.toFixed(1)}x`, 20, tempCanvas.height - 55);
+                ctx.fillText(`Ring Width: ${ringWidth.toFixed(1)}s`, 20, tempCanvas.height - 35);
+                ctx.fillText(`Generated: ${new Date().toLocaleString()}`, 20, tempCanvas.height - 15);
 
-                addWatermark();
-
-                // Convert to blob and download
                 tempCanvas.toBlob(function(blob) {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
                     
-                    // Generate filename with timestamp and dataset name
                     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
                     const datasetName = (currentCSVKey || 'propagation').replace(/[^a-zA-Z0-9]/g, '_');
-                    const currentTime = (currentFrame / (totalFrames - 1)) * 10;
-                    link.download = `propagation_${datasetName}_${currentTime.toFixed(2)}s_${timestamp}.png`;
+                    link.download = `sound_propagation_${datasetName}_${currentTime.toFixed(2)}s_${timestamp}.png`;
                     
                     document.body.appendChild(link);
                     link.click();
@@ -904,12 +995,34 @@
         });
 
         document.getElementById('reset-btn').addEventListener('click', resetAnimation);
-        
         document.getElementById('screenshot-btn').addEventListener('click', takeScreenshot);
 
         document.getElementById('timeline-slider').addEventListener('input', (e) => {
             pauseAnimation();
-            currentFrame = parseInt(e.target.value);
+            const progress = parseFloat(e.target.value) / 100;
+            currentTime = progress * maxTime;
+            updateVisualization();
+        });
+
+        // Control sliders
+        document.getElementById('animationSpeedSlider').addEventListener('input', (e) => {
+            animationSpeedMultiplier = parseFloat(e.target.value);
+            document.getElementById('animationSpeedValue').textContent = `${animationSpeedMultiplier.toFixed(1)}x`;
+        });
+
+        document.getElementById('ringWidthSlider').addEventListener('input', (e) => {
+            ringWidth = parseFloat(e.target.value);
+            document.getElementById('ringWidthValue').textContent = `${ringWidth.toFixed(1)} s`;
+            updateVisualization();
+        });
+
+        document.getElementById('maxTimeSlider').addEventListener('input', (e) => {
+            maxTime = parseInt(e.target.value);
+            document.getElementById('maxTimeValue').textContent = `${maxTime.toFixed(1)} s`;
+            // Reset animation if current time exceeds new max
+            if (currentTime > maxTime) {
+                resetAnimation();
+            }
             updateVisualization();
         });
 
@@ -927,15 +1040,17 @@
                 case 'ArrowLeft':
                     e.preventDefault();
                     pauseAnimation();
-                    currentFrame = Math.max(0, currentFrame - 1);
-                    document.getElementById('timeline-slider').value = currentFrame;
+                    currentTime = Math.max(0, currentTime - 0.5 * animationSpeedMultiplier);
+                    const progressLeft = (currentTime / maxTime) * 100;
+                    document.getElementById('timeline-slider').value = progressLeft;
                     updateVisualization();
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
                     pauseAnimation();
-                    currentFrame = Math.min(totalFrames - 1, currentFrame + 1);
-                    document.getElementById('timeline-slider').value = currentFrame;
+                    currentTime = Math.min(maxTime, currentTime + 0.5 * animationSpeedMultiplier);
+                    const progressRight = (currentTime / maxTime) * 100;
+                    document.getElementById('timeline-slider').value = progressRight;
                     updateVisualization();
                     break;
                 case 'KeyR':
@@ -949,86 +1064,8 @@
             }
         });
 
-        // Auto-scroll setup function
-        function setupAutoScroll() {
-            const infoContainer = document.querySelector('.info-container');
-            if (!infoContainer) return;
-
-            let autoScrollInterval = null;
-            let scrollSpeed = 0;
-            
-            // Auto-scroll parameters
-            const SCROLL_ZONE_HEIGHT = 60; // Height of the trigger zone at bottom
-            const MAX_SCROLL_SPEED = 2; // Maximum scroll speed
-            const SCROLL_ACCELERATION = 0.1; // How quickly to accelerate
-
-            function startAutoScroll(speed) {
-                if (autoScrollInterval) return; // Already scrolling
-                
-                autoScrollInterval = setInterval(() => {
-                    infoContainer.scrollTop += speed;
-                    
-                    // Stop if we've reached the bottom
-                    if (infoContainer.scrollTop >= 
-                        infoContainer.scrollHeight - infoContainer.clientHeight) {
-                        stopAutoScroll();
-                    }
-                }, 16); // ~60fps
-            }
-
-            function stopAutoScroll() {
-                if (autoScrollInterval) {
-                    clearInterval(autoScrollInterval);
-                    autoScrollInterval = null;
-                }
-                scrollSpeed = 0;
-            }
-
-            // Mouse move handler for auto-scroll
-            infoContainer.addEventListener('mousemove', (e) => {
-                const rect = infoContainer.getBoundingClientRect();
-                const relativeY = e.clientY - rect.top;
-                const containerHeight = rect.height;
-                
-                // Check if mouse is in the bottom scroll zone
-                const isInScrollZone = relativeY > (containerHeight - SCROLL_ZONE_HEIGHT);
-                
-                if (isInScrollZone && 
-                    infoContainer.scrollTop < 
-                    infoContainer.scrollHeight - infoContainer.clientHeight) {
-                    
-                    // Calculate scroll speed based on how close to bottom edge
-                    const distanceFromBottom = containerHeight - relativeY;
-                    const speedRatio = Math.max(0, (SCROLL_ZONE_HEIGHT - distanceFromBottom) / SCROLL_ZONE_HEIGHT);
-                    const targetSpeed = speedRatio * MAX_SCROLL_SPEED;
-                    
-                    // Smooth acceleration
-                    scrollSpeed = Math.min(targetSpeed, scrollSpeed + SCROLL_ACCELERATION);
-                    
-                    startAutoScroll(scrollSpeed);
-                } else {
-                    stopAutoScroll();
-                }
-            });
-
-            // Stop auto-scroll when mouse leaves container
-            infoContainer.addEventListener('mouseleave', () => {
-                stopAutoScroll();
-            });
-
-            // Stop auto-scroll on manual scroll
-            infoContainer.addEventListener('wheel', (e) => {
-                stopAutoScroll();
-            });
-        }
-
         // Initialize when page loads
         init();
-        
-        // Set up auto-scroll after initialization
-        setTimeout(() => {
-            setupAutoScroll();
-        }, 500);
     </script>
 </body>
 
