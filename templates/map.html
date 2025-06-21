@@ -44,6 +44,23 @@
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.5);
         }
 
+        .glass-toggle {
+            background: rgba(17, 25, 40, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.2);
+        }
+
+        .glass-toggle:hover {
+            background: rgba(17, 25, 40, 0.6);
+            box-shadow: 0 6px 30px 0 rgba(31, 38, 135, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .glass-toggle:active {
+            transform: translateY(0px) scale(0.95);
+        }
+
         /* Enhanced Tooltip */
         .tooltip {
             position: absolute;
@@ -113,6 +130,36 @@
             /* Add subtle background to unify the panels */
             background: rgba(0, 0, 0, 0.1);
             padding: 0.5rem;
+        }
+
+        /* Controls container hidden state with enhanced animations */
+        .controls-container {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .controls-container.hidden {
+            transform: translateX(calc(100% + 2rem));
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* Controls toggle button positioning - no longer needs to move */
+        #controlsToggle {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Icon rotation and scale for toggle state */
+        #toggleControlsIcon.rotated {
+            transform: rotate(180deg) scale(1.1);
+        }
+
+        /* Enhanced legend repositioning with smooth animation */
+        #legend {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #legend.controls-hidden {
+            right: 2rem !important;
         }
 
         .control-panel {
@@ -390,6 +437,21 @@
                 scroll-behavior: smooth;
             }
 
+            /* Mobile controls container hidden state with fade effect */
+            .controls-container.hidden {
+                transform: translateY(calc(100% + 2rem));
+                opacity: 0;
+                visibility: hidden;
+            }
+
+            /* Controls toggle button on mobile - moved to bottom left */
+            #controlsToggle {
+                top: auto !important;
+                bottom: 1rem !important;
+                left: 1rem !important;
+                right: auto !important;
+            }
+
             .control-panel {
                 padding: 1rem;
                 margin-bottom: 0.5rem;
@@ -572,8 +634,15 @@
         <div id="legendLabels" class="legend-labels"></div>
     </div>
 
+    <!-- Controls Toggle Button -->
+    <div id="controlsToggle" class="fixed top-4 left-4 z-[1001] transition-all duration-500 ease-in-out">
+        <button id="toggleControlsBtn" class="glass-toggle rounded-full p-3 text-white hover:bg-white hover:bg-opacity-10 transition-all duration-500 ease-in-out group shadow-xl hover:shadow-2xl">
+            <i id="toggleControlsIcon" data-lucide="panel-right" class="w-5 h-5 transition-transform duration-500 ease-in-out"></i>
+        </button>
+    </div>
+
     <!-- Main Controls Container -->
-    <div class="controls-container custom-scrollbar">
+    <div id="controlsContainer" class="controls-container custom-scrollbar transition-transform duration-300 ease-in-out">
         <!-- CSV File Selector Panel -->
         <div class="control-panel glass fade-in-up">
             <div class="section-title text-white">
@@ -864,6 +933,10 @@
                     <span>Help</span>
                     <kbd class="kbd">H</kbd>
                 </div>
+                <div class="flex justify-between items-center">
+                    <span>Toggle Controls</span>
+                    <kbd class="kbd">C</kbd>
+                </div>
             </div>
             <div class="mt-4 pt-3 border-t border-white border-opacity-20" id="propagationShortcuts" style="display: none;">
                 <h5 class="font-semibold mb-2 text-blue-300">Propagation Mode</h5>
@@ -919,6 +992,7 @@
         let hoveredObject = null;
         let pickedValue = null;
         let legendVisible = false;
+        let controlsVisible = true; // Default state is visible
 
         // Configuration for the heatmap
         let heatmapConfig = { 
@@ -995,6 +1069,32 @@
                 notification.style.opacity = '0';
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
+        }
+
+        // Enhanced controls toggle functionality with smooth animations
+        function toggleControls() {
+            controlsVisible = !controlsVisible;
+            const controlsContainer = document.getElementById('controlsContainer');
+            const toggleIcon = document.getElementById('toggleControlsIcon');
+            const legend = document.getElementById('legend');
+            
+            if (controlsVisible) {
+                // Show controls with fade-in
+                controlsContainer.classList.remove('hidden');
+                toggleIcon.classList.remove('rotated');
+                legend.classList.remove('controls-hidden');
+                
+                // Add subtle notification
+                showNotification('Controls panel shown', 'info');
+            } else {
+                // Hide controls with fade-out
+                controlsContainer.classList.add('hidden');
+                toggleIcon.classList.add('rotated');
+                legend.classList.add('controls-hidden');
+                
+                // Add subtle notification
+                showNotification('Controls panel hidden', 'info');
+            }
         }
 
         // Propagation helper functions
@@ -1835,6 +1935,7 @@
         document.getElementById('exportDataBtn').addEventListener('click', exportData);
         document.getElementById('toggleLegendBtn').addEventListener('click', toggleLegend);
         document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+        document.getElementById('toggleControlsBtn').addEventListener('click', toggleControls);
         
         // Propagation mode toggle
         document.getElementById('propagationModeToggle').addEventListener('change', togglePropagationMode);
@@ -1900,6 +2001,10 @@
                     case 'h':
                         e.preventDefault();
                         helpBtn.click();
+                        break;
+                    case 'c':
+                        e.preventDefault();
+                        toggleControls();
                         break;
                     case ' ':
                         if (propagationMode) {
@@ -2007,6 +2112,9 @@
                     // Fallback to loading data directly
                     loadData();
                 });
+
+            // Re-initialize Lucide icons after DOM manipulation
+            lucide.createIcons();
 
             // Initialize slider values from config
             document.getElementById('opacityValue').textContent = currentOpacity.toFixed(2);
