@@ -22,6 +22,104 @@ except ImportError:
         INITIAL_HEATMAP_INTENSITY = 1.5
         INITIAL_HEATMAP_THRESHOLD = 0.00
 
+def get_blueprint_directory():
+    """Get the directory where this blueprint file is located"""
+    return os.path.dirname(os.path.abspath(__file__))
+
+def auto_detect_resource_paths():
+    """
+    Auto-detect paths for colors, static, and templates relative to blueprint location.
+    This eliminates the need to manually specify these paths during integration.
+    """
+    blueprint_dir = get_blueprint_directory()
+    
+    paths = {
+        'colors': os.path.join(blueprint_dir, 'colors'),
+        'static': os.path.join(blueprint_dir, 'static'), 
+        'templates': os.path.join(blueprint_dir, 'templates')
+    }
+    
+    # Verify paths exist and provide fallbacks
+    for key, path in paths.items():
+        if not os.path.exists(path):
+            print(f"⚠ Warning: {key} directory not found at {path}")
+            # Try alternative locations
+            alt_path = os.path.join(os.getcwd(), key)
+            if os.path.exists(alt_path):
+                paths[key] = alt_path
+                print(f"✓ Using alternative {key} directory: {alt_path}")
+            else:
+                print(f"ℹ Using default {key} path: {path}")
+    
+    return paths
+
+def smart_csv_read(csv_file, required_columns):
+    """
+    Intelligently read CSV files with flexible format handling.
+    Handles files with or without index columns automatically.
+    """
+    print(f"📊 Smart CSV reading: {csv_file}")
+    
+    if not os.path.exists(csv_file):
+        raise FileNotFoundError(f"CSV file not found: {csv_file}")
+    
+    # First, try to read with index_col=0 (current default behavior)
+    try:
+        df = pd.read_csv(csv_file, index_col=0)
+        print(f"✓ CSV read with index column, shape: {df.shape}")
+        
+        # Check if required columns exist
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if not missing_cols:
+            print(f"✓ All required columns found: {required_columns}")
+            return df
+        else:
+            print(f"⚠ Missing columns with index_col=0: {missing_cols}")
+            
+    except Exception as e:
+        print(f"⚠ Failed to read with index_col=0: {e}")
+    
+    # Try reading without index column
+    try:
+        df = pd.read_csv(csv_file)
+        print(f"✓ CSV read without index column, shape: {df.shape}")
+        print(f"Available columns: {list(df.columns)}")
+        
+        # Check if required columns exist
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if not missing_cols:
+            print(f"✓ All required columns found: {required_columns}")
+            return df
+        else:
+            print(f"⚠ Missing required columns: {missing_cols}")
+            
+    except Exception as e:
+        print(f"⚠ Failed to read without index: {e}")
+    
+    # Try with different encodings if standard reading fails
+    for encoding in ['utf-8', 'latin-1', 'cp1252']:
+        try:
+            df = pd.read_csv(csv_file, encoding=encoding)
+            print(f"✓ CSV read with {encoding} encoding, shape: {df.shape}")
+            
+            missing_cols = [col for col in required_columns if col not in df.columns]
+            if not missing_cols:
+                print(f"✓ All required columns found with {encoding} encoding")
+                return df
+                
+        except Exception as e:
+            print(f"⚠ Failed with {encoding} encoding: {e}")
+            continue
+    
+    # If we get here, we couldn't read the file properly
+    try:
+        # Last resort: read first few lines to show structure
+        with open(csv_file, 'r') as f:
+            preview = f.read(500)
+        raise ValueError(f"Could not read CSV file. Required columns: {required_columns}. File preview:\n{preview}")
+    except:
+        raise ValueError(f"Could not read CSV file: {csv_file}. Required columns: {required_columns}")
+
 class HeatmapConfig:
     """
     Unified configuration class for the heatmap blueprint.
@@ -35,8 +133,12 @@ class HeatmapConfig:
     - Global configuration via config.json
     - Per-instance overrides via register_heatmap() parameters
     - Multiple blueprint instances with different configs
+    - Auto-detection of resource paths for minimal friction
     """
     def __init__(self, **kwargs):
+        # Auto-detect resource paths if not provided
+        auto_paths = auto_detect_resource_paths()
+        
         # Load global configuration defaults first
         global_defaults = self._load_global_defaults()
         
@@ -45,10 +147,10 @@ class HeatmapConfig:
         self.CSV_FILES = kwargs.get('CSV_FILES', None)  # New: dict of {name: filepath} or list of filepaths
         self.DEFAULT_CSV = kwargs.get('DEFAULT_CSV', None)  # Which CSV to show by default
         
-        # Folder configuration
-        self.STATIC_FOLDER = kwargs.get('STATIC_FOLDER', global_defaults.get('STATIC_FOLDER', 'static'))
-        self.TEMPLATE_FOLDER = kwargs.get('TEMPLATE_FOLDER', global_defaults.get('TEMPLATE_FOLDER', 'templates'))
-        self.COLORS_DIR = kwargs.get('COLORS_DIR', 'colors')
+        # Folder configuration with auto-detection
+        self.STATIC_FOLDER = kwargs.get('STATIC_FOLDER', global_defaults.get('STATIC_FOLDER', auto_paths['static']))
+        self.TEMPLATE_FOLDER = kwargs.get('TEMPLATE_FOLDER', global_defaults.get('TEMPLATE_FOLDER', auto_paths['templates']))
+        self.COLORS_DIR = kwargs.get('COLORS_DIR', auto_paths['colors'])
         
         # Data configuration
         self.REQUIRED_COLUMNS = kwargs.get('REQUIRED_COLUMNS', global_defaults.get('REQUIRED_COLUMNS', ['Latitude', 'Longitude', 'Value']))
@@ -68,8 +170,16 @@ class HeatmapConfig:
         self._config_sources = {
             'global_config_available': GLOBAL_CONFIG_AVAILABLE,
             'runtime_overrides': list(kwargs.keys()) if kwargs else [],
-            'using_global_defaults': bool(global_defaults)
+            'using_global_defaults': bool(global_defaults),
+            'auto_detected_paths': auto_paths
         }
+        
+        # Print setup info for debugging
+        print(f"🔧 Blueprint setup: {self.BLUEPRINT_NAME}")
+        print(f"   Colors: {self.COLORS_DIR}")
+        print(f"   Static: {self.STATIC_FOLDER}")
+        print(f"   Templates: {self.TEMPLATE_FOLDER}")
+        print(f"   CSV files: {len(self.csv_files_dict)} dataset(s)")
     
     def _load_global_defaults(self):
         """
@@ -178,6 +288,8 @@ def load_colors(colors_dir='colors'):
         if os.path.exists(colors_file):
             with open(colors_file, 'r') as f:
                 return json.load(f)
+        else:
+            print(f"ℹ Colors file not found at {colors_file}, using defaults")
     except Exception as e:
         print(f"Error loading colors from {colors_file}: {e}")
     
@@ -216,10 +328,6 @@ def create_heatmap_blueprint(config=None):
     def index():
         return render_template('map.html', config=config)
 
-    @bp.route('/propagation')
-    def propagation():
-        return render_template('propagation.html', config=config)
-
     @bp.route('/csv-files')
     def get_csv_files():
         """Get list of available CSV files"""
@@ -256,10 +364,10 @@ def create_heatmap_blueprint(config=None):
             if csv_file is None:
                 return jsonify({'error': f'CSV file not found: {csv_key}'}), 404
             
-            print(f"Loading data from: {csv_file}")
+            print(f"📊 Loading data from: {csv_file}")
             
-            # Read CSV file (skip the first column which is an index)
-            df = pd.read_csv(csv_file, index_col=0)
+            # Use smart CSV reading with flexible format handling
+            df = smart_csv_read(csv_file, config.REQUIRED_COLUMNS)
             
             # Extract required columns
             data = df[config.REQUIRED_COLUMNS].to_dict(orient='records')
@@ -272,8 +380,8 @@ def create_heatmap_blueprint(config=None):
                 'max': max_val
             }
             
-            print(f"Data range for {csv_key}: min={min_val}, max={max_val}")
-            print(f"Sample values: {df['Value'].head().tolist()}")
+            print(f"✓ Data range for {csv_key}: min={min_val}, max={max_val}")
+            print(f"✓ Loaded {len(data)} data points")
             
             # Load color configuration
             colors = load_colors(config.COLORS_DIR)
@@ -287,9 +395,21 @@ def create_heatmap_blueprint(config=None):
             }
             
             return jsonify(response_data)
+        
+        except FileNotFoundError as e:
+            error_msg = f"CSV file not found: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 404
+            
+        except ValueError as e:
+            error_msg = f"CSV format error: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 400
+            
         except Exception as e:
-            print(f"Error in get_data: {e}")
-            return jsonify({'error': str(e)}), 500
+            error_msg = f"Unexpected error loading data: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 500
 
     @bp.route('/propagation-data')
     @bp.route('/propagation-data/<csv_key>')
@@ -304,14 +424,9 @@ def create_heatmap_blueprint(config=None):
             if csv_file is None:
                 return jsonify({'error': f'CSV file not found: {csv_key}'}), 404
             
-            # Read CSV file (skip the first column which is an index)
-            df = pd.read_csv(csv_file, index_col=0)
-            print(f"Loading propagation data: {len(df)} points")
-            
-            # Check if we have the required columns
-            for col in config.REQUIRED_COLUMNS:
-                if col not in df.columns:
-                    raise ValueError(f"Missing required column: {col}")
+            # Use smart CSV reading with flexible format handling
+            df = smart_csv_read(csv_file, config.REQUIRED_COLUMNS)
+            print(f"📊 Loading propagation data: {len(df)} points")
             
             # Remove any rows with NaN values
             df_clean = df.dropna(subset=config.REQUIRED_COLUMNS)
@@ -322,7 +437,7 @@ def create_heatmap_blueprint(config=None):
             # Sample the data to make it manageable
             sample_factor = max(1, len(df_clean) // 2000)  # Limit to ~2000 points for better performance
             df_sampled = df_clean.iloc[::sample_factor].copy().reset_index(drop=True)
-            print(f"Processing {len(df_sampled)} sampled points")
+            print(f"📊 Processing {len(df_sampled)} sampled points")
             
             if len(df_sampled) == 0:
                 raise ValueError("No data points after sampling")
@@ -438,63 +553,74 @@ def create_heatmap_blueprint(config=None):
                                     'noise': noise_val,
                                     'distance': distance_val
                                 })
-                        except Exception as e:
-                            print(f"Warning: Skipping invalid data point at index {idx}: {e}")
+                        except Exception as point_error:
+                            print(f"Warning: Skipping invalid point {idx}: {point_error}")
                             continue
                     
                     propagation_frames.append(frame_data)
                     
             except Exception as e:
-                raise ValueError(f"Error during propagation simulation: {str(e)}")
+                print(f"Error in propagation simulation: {e}")
+                raise ValueError(f"Error generating propagation simulation: {str(e)}")
             
+            # Build response
             response_data = {
                 'frames': propagation_frames,
-                'center': {'latitude': center_lat, 'longitude': center_lon},
-                'maxDistance': max_distance,
+                'centerPoint': [center_lat, center_lon],
                 'timeSteps': time_steps,
-                'valueRange': {
-                    'min': min_noise,
-                    'max': max_noise
+                'stats': {
+                    'totalPoints': len(df_sampled),
+                    'minNoise': min_noise,
+                    'maxNoise': max_noise,
+                    'maxDistance': max_distance
                 },
-                'sampleInfo': {
-                    'originalPoints': len(df),
-                    'sampledPoints': len(df_sampled),
-                    'sampleFactor': sample_factor
-                }
+                'csvKey': csv_key,
+                'csvFile': csv_file
             }
             
-            print(f"Propagation calculation completed successfully with {len(propagation_frames)} frames")
+            print(f"✓ Propagation simulation completed: {time_steps} frames, center at ({center_lat:.4f}, {center_lon:.4f})")
+            
             return jsonify(response_data)
             
+        except FileNotFoundError as e:
+            error_msg = f"CSV file not found: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 404
+            
+        except ValueError as e:
+            error_msg = f"Data processing error: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 400
+            
         except Exception as e:
-            error_message = str(e) if str(e) else "Unknown error occurred"
-            print(f"Error in propagation calculation: {error_message}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'error': f"Propagation calculation failed: {error_message}"}), 500
+            error_msg = f"Unexpected error in propagation data: {e}"
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 500
 
     @bp.route('/test-data')
     @bp.route('/test-data/<csv_key>')
     def test_data(csv_key=None):
+        """Test endpoint to validate CSV data loading"""
         try:
-            # Use default CSV if no key specified
             if csv_key is None:
                 csv_key = config.default_csv_key
             
-            # Get CSV file path
             csv_file = config.get_csv_path(csv_key)
             if csv_file is None:
                 return jsonify({'error': f'CSV file not found: {csv_key}'}), 404
             
-            df = pd.read_csv(csv_file, index_col=0)
+            # Test smart CSV reading
+            df = smart_csv_read(csv_file, config.REQUIRED_COLUMNS)
+            
             return jsonify({
-                'success': True,
                 'csvKey': csv_key,
                 'csvFile': csv_file,
-                'rows': len(df),
-                'columns': df.columns.tolist(),
-                'sample': df.head(3).to_dict('records')
+                'shape': df.shape,
+                'columns': list(df.columns),
+                'requiredColumns': config.REQUIRED_COLUMNS,
+                'sample': df.head().to_dict(orient='records')
             })
+            
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
@@ -504,18 +630,34 @@ def create_heatmap_blueprint(config=None):
     
     return bp
 
-# Convenience function for simple integration
 def register_heatmap(app, **config_kwargs):
     """
-    Simple function to register heatmap blueprint with a Flask app.
+    Simplified registration function for the heatmap blueprint.
+    
+    This is the main entry point for adding heatmap functionality to your Flask app.
+    Now with minimal friction - just point to your CSV file and go!
     
     Args:
         app: Flask application instance
-        **config_kwargs: Configuration options for HeatmapConfig
+        **config_kwargs: Configuration parameters (see HeatmapConfig for options)
     
-    Returns:
-        The registered blueprint instance
+    Example:
+        # Minimal usage - just specify your CSV file
+        register_heatmap(app, INPUT_CSV_FILE='path/to/your/data.csv')
+        
+        # Multiple CSV files
+        register_heatmap(app, CSV_FILES={
+            'Survey 2023': 'data/survey_2023.csv',
+            'Survey 2022': 'data/survey_2022.csv'
+        })
     """
-    blueprint = create_heatmap_blueprint(config_kwargs)
+    config = HeatmapConfig(**config_kwargs)
+    blueprint = create_heatmap_blueprint(config)
     app.register_blueprint(blueprint)
+    
+    print(f"🚀 Heatmap blueprint registered!")
+    print(f"   Available at: {config.URL_PREFIX}/")
+    print(f"   Propagation: Integrated in main view")
+    print(f"   Data API: {config.URL_PREFIX}/data")
+    
     return blueprint 

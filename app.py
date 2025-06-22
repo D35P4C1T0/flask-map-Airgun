@@ -20,17 +20,20 @@ csv_files = {
     'Third Dataset': 'data/data3.csv'
 }
 
+# Register heatmap blueprint
+heatmap_url_prefix = '/map'
 register_heatmap(app,
     CSV_FILES=csv_files,
     DEFAULT_CSV='Primary Dataset',  # Use the display name, not file path
-    URL_PREFIX='/heatmap',          # Heatmap will be at /heatmap/
+    URL_PREFIX=heatmap_url_prefix,  # Heatmap will be at /map/
     BLUEPRINT_NAME='multi_csv_heatmap'
 )
 
 @app.route('/')
 def index():
-    """Main page with links to different sections"""
-    return app.send_static_file('index.html')
+    """Redirect to heatmap view"""
+    from flask import redirect
+    return redirect(heatmap_url_prefix + '/')
 
 
 @app.route('/static/<path:filename>')
@@ -40,7 +43,6 @@ def serve_static(filename):
 if __name__ == '__main__':
     print("Starting Flask app with multiple CSV support...")
     print("Available routes:")
-    print("  / - Main dashboard")
-    print("  /heatmap/ - Multi-CSV heatmap")
-    print("  /heatmap/propagation - Multi-CSV propagation")
+    print("  / - Redirects to heatmap")
+    print(f"  {heatmap_url_prefix}/ - Unified view with heatmap and propagation")
     app.run(debug=True)

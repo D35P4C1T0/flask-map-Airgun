@@ -1014,6 +1014,9 @@
         const soundSpeed = 1481; // m/s in water (fixed, physically accurate)
         let ringWidth = 10.0; // seconds
         let animationSpeedMultiplier = 1.0; // Speed multiplier for animation playback
+        
+        // Blueprint configuration
+        const URL_PREFIX = '{{ config.URL_PREFIX }}';
 
         // OpenStreetMap tile layer configuration
         const OSM_TILE_LAYER = {
@@ -1669,7 +1672,7 @@
 
         // Load available CSV files list
         function loadCSVFilesList() {
-            return fetch('/heatmap/csv-files')
+            return fetch(`${URL_PREFIX}/csv-files`)
                 .then(response => {
                     if (!response.ok) throw new Error('Failed to load CSV files list');
                     return response.json();
@@ -1721,7 +1724,7 @@
         // Load data for a specific CSV file
         function loadData(csvKey = null) {
             const keyToLoad = csvKey || currentCSVKey;
-            const url = keyToLoad ? `/heatmap/data/${encodeURIComponent(keyToLoad)}` : '/heatmap/data';
+            const url = keyToLoad ? `${URL_PREFIX}/data/${encodeURIComponent(keyToLoad)}` : `${URL_PREFIX}/data`;
             
             // Show loading status
             const dataStatus = document.getElementById('dataStatus');

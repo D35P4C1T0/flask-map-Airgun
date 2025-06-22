@@ -6,7 +6,6 @@ import yaml # Added for optional YAML support
 DEFAULT_SETTINGS = {
     'INPUT_CSV_FILE': 'data/data.csv',
     'STATIC_FOLDER': 'static',
-    'FRONTEND_TEMPLATE': 'index.html',
     'REQUIRED_COLUMNS': ['Latitude', 'Longitude', 'Value'],
     'DEFAULT_MAP_OPACITY': 0.75,
     'INITIAL_HEATMAP_RADIUS': 40,
